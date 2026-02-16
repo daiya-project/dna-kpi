@@ -1,0 +1,59 @@
+---
+description: Main project rules and conventions for dna-kpi
+alwaysApply: true
+---
+
+# Project Main Rules
+
+## Rule Language
+
+**All rules in this project are written in English.**  
+When adding or editing files under `.cursor/rules/`, write rule content in English so that AI guidance and project conventions stay consistent and language-agnostic.
+
+## Scope
+
+This file defines the project's core, baseline expectations. Other rule files may add file-specific or topic-specific conventions on top of these.
+
+## Tech Stack Context
+
+- **Framework:** Next.js 16 (App Router, React 19).
+- **Backend / Data:** Supabase (`@supabase/supabase-js` + `@supabase/ssr`).
+- **Styling:** Tailwind CSS v4.
+- **UI components:** Shadcn/ui (Radix UI primitives + Tailwind; install via `npx shadcn@latest add <component>`; do not copy-paste from external sources—use the project's existing `components.json` and `components/ui/`).
+- **State management:** Zustand. Keep stores in the `stores/` directory (one store per file). Use `devtools` middleware in development. Do **not** use Redux, MobX, Jotai, or other state libraries.
+- **All generated code must use only these technologies.** Prefer Next.js patterns (Server Components, Server Actions where appropriate) and the project's Shadcn/ui components; do not introduce other UI libraries or frameworks.
+
+## Project Structure
+
+```
+app/                  # Next.js App Router (layouts, pages, route handlers)
+  globals.css         # Global styles (Tailwind directives, CSS variables)
+components/
+  ui/                 # Shadcn/ui components (add via npx shadcn@latest add)
+  common/             # Shared reusable UI components
+hooks/                # Custom React hooks
+stores/               # Zustand stores (one store per file)
+lib/
+  api/                # API / data communication layer only
+  supabase/           # Supabase client (client.ts, server.ts, middleware.ts)
+  utils/              # Shared utilities (barrel export via index.ts)
+  utils.ts            # Legacy re-export for Shadcn compatibility
+types/                # Global type definitions
+  database.types.ts   # Supabase auto-generated (npm run update-types)
+  app-db.types.ts     # App-level re-exports of used tables/views
+public/               # Static assets
+middleware.ts         # Next.js middleware (Supabase session refresh)
+```
+
+## Creating New Components
+
+When a new component needs to be created, **do not create it immediately.** Instead:
+
+1. **Confirm the folder (and path)** where the component will live—check existing structure and naming (e.g. under `components/`, `app/<route>/_components/`, or common UI).
+2. **Present the proposed folder/path** to the user and ask for confirmation.
+3. **Create the component** only after the user confirms the folder name and location.
+
+## Communication and Documentation Language
+
+- **Feedback to the user**: When providing feedback, explanations, or responses directed at the user, use **Korean**.
+- **Markdown documents**: When creating or editing Markdown (`.md`) documents in the project—excluding rule files under `.cursor/rules/`—write the document content in **Korean**.
