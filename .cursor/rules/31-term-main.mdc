@@ -1,68 +1,33 @@
 ---
-description: Time/date terms and implementation rules when using Supabase/PostgreSQL (ads_data_daily, week_master, public_holidays)
+description: Time/date terms and implementation rules when using Supabase/PostgreSQL (ads_data_daily, public_holidays). Today/current month use system date.
 alwaysApply: true
 ---
 
 # Data: Time and Date
 
-Rules for time/date terms and implementation when using Supabase/PostgreSQL with tables like `ads_data_daily`, `week_master`, `public_holidays`.
+Rules for time/date terms and implementation when using Supabase/PostgreSQL with tables like `ads_data_daily`, `public_holidays`.
 
 ## 1. Term definitions
 
-| Term                        | Meaning                                  | Implementation                                                                                                            |
-| --------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| **Date**                    | Table `date` column value                | Table's `date` (or `revenue_date`)                                                                                        |
-| **Today / most recent day** | Latest date that exists in DB            | Use `MAX(date)` or equivalent from DB, not system date                                                                    |
-| **Current month**           | Month (YYYY-MM) of that most recent date | Derive from the latest date in DB                                                                                         |
-| **Week**                    | One-week period                          | **Must** use `week_master.start_date`, `week_master.end_date`. Do not compute Monday/Sunday manually or use ISO week only |
-| **Workday**                 | Non-holiday day                          | Not in `public_holidays`; filter with `is_holiday = false` for daily data                                                 |
+| Term                        | Meaning                    | Implementation                                                                     |
+| --------------------------- | -------------------------- | ---------------------------------------------------------------------------------- |
+| **Date**                    | Table `date` column value  | Table's `date` (or `revenue_date`)                                                 |
+| **Today / most recent day** | Current calendar day       | Use **system date** (e.g. `new Date()`, `new Date().toISOString().slice(0, 10)`)   |
+| **Current month**           | Current calendar month     | Derive from **system date** (YYYY-MM)                                               |
+| **Workday**                 | Non-holiday day            | Not in `public_holidays`; filter with `is_holiday = false` for daily data           |
 
 ## 2. Today / current month
 
-- **Today**: Use the **latest `date` that actually exists in the DB**, not the system date.
-- **Current month**: The month (YYYY-MM) of that latest date.
+- **Today**: Use the **system date** (client or server current date).
+- **Current month**: The month (YYYY-MM) of the system date.
 
 ```typescript
-// ✅ GOOD — latest date from DB
-const { data } = await supabase
-  .from("ads_data_daily")
-  .select("date")
-  .order("date", { ascending: false })
-  .limit(1);
-const mostRecentDate = data?.[0]?.date;
-
-// ❌ BAD — using system today
-const todayData = getDataForDate(new Date().toISOString().slice(0, 10));
+// ✅ GOOD — system date for today / current month
+const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+const currentMonth = today.slice(0, 7); // YYYY-MM
 ```
 
-## 3. Week — use week_master only
-
-- All "week" logic (weekly totals, comparisons) uses **only** the `week_master` table.
-- Columns: `week_id`, `year`, `week_number`, `start_date`, `end_date`, `week_label`, etc.
-
-```typescript
-// ✅ GOOD — week bounds from week_master
-const { data: week } = await supabase
-  .from("week_master")
-  .select("start_date, end_date")
-  .eq("year", year)
-  .eq("week_number", weekNumber)
-  .single();
-
-const { data: dailyData } = await supabase
-  .from("ads_data_daily")
-  .select("amount")
-  .gte("date", week.start_date)
-  .lte("date", week.end_date);
-```
-
-```typescript
-// ❌ BAD — manual week boundaries
-const weekStart = getMonday(date);
-const weekEnd = getSunday(date);
-```
-
-## 4. Workdays
+## 3. Workdays
 
 - **Daily data**: Filter with `is_holiday = false` (or equivalent).
 - **Check if a date is workday**: If it is **not** in `public_holidays`, treat as workday.
@@ -86,22 +51,20 @@ const { data } = await supabase
 const isWorkday = data == null;
 ```
 
-## 5. Date format (CSV / API)
+## 4. Date format (CSV / API)
 
 - **Internal / API**: Prefer `YYYY-MM-DD`.
 - **CSV / user input**: If you accept multiple formats, **normalize to YYYY-MM-DD** before DB or business logic.
 
-## 6. Reference tables
+## 5. Reference tables
 
-| Table             | Role                                                                          |
-| ----------------- | ----------------------------------------------------------------------------- |
-| `ads_data_daily`  | Daily data; `date`, `is_holiday`, etc.                                        |
-| `week_master`     | Week boundaries (`start_date`, `end_date`) — single source of truth for weeks |
-| `public_holidays` | Holiday list — used for workday checks                                        |
+| Table             | Role                                           |
+| ----------------- | ---------------------------------------------- |
+| `ads_data_daily`  | Daily data; `date`, `is_holiday`, etc.         |
+| `public_holidays` | Holiday list — used for workday checks         |
 
 ## Checklist
 
-- [ ] Today/current month derived from DB latest date?
-- [ ] All week logic uses `week_master`?
+- [ ] Today/current month use system date?
 - [ ] Workday filter uses `is_holiday` or `public_holidays`?
 - [ ] CSV/input dates normalized to YYYY-MM-DD before use?

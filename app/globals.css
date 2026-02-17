@@ -25,6 +25,21 @@
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
+  --color-glass: var(--glass);
+  --color-glass-border: var(--glass-border);
+  --color-glass-shadow: var(--glass-shadow);
+  --color-mint: var(--mint);
+  --color-mint-light: var(--mint-light);
+  --color-mint-foreground: var(--mint-foreground);
+  --color-blue: var(--blue);
+  --color-blue-light: var(--blue-light);
+  --color-blue-foreground: var(--blue-foreground);
+  --color-rose: var(--rose);
+  --color-rose-light: var(--rose-light);
+  --color-rose-foreground: var(--rose-foreground);
+  --color-amber: var(--amber);
+  --color-amber-light: var(--amber-light);
+  --color-amber-foreground: var(--amber-foreground);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
@@ -49,6 +64,21 @@
 
 :root {
   --radius: 0.625rem;
+  --glass: oklch(0.995 0.001 240 / 0.55);
+  --glass-border: oklch(1 0 0 / 0.25);
+  --glass-shadow: oklch(0.5 0.02 240 / 0.08);
+  --mint: oklch(0.85 0.12 165);
+  --mint-light: oklch(0.95 0.05 165);
+  --mint-foreground: oklch(0.3 0.08 165);
+  --blue: oklch(0.72 0.12 240);
+  --blue-light: oklch(0.94 0.04 240);
+  --blue-foreground: oklch(0.3 0.1 240);
+  --rose: oklch(0.78 0.1 10);
+  --rose-light: oklch(0.95 0.04 10);
+  --rose-foreground: oklch(0.35 0.1 10);
+  --amber: oklch(0.82 0.12 80);
+  --amber-light: oklch(0.95 0.05 80);
+  --amber-foreground: oklch(0.35 0.1 80);
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
@@ -83,6 +113,9 @@
 }
 
 .dark {
+  --glass: oklch(0.21 0.006 285.885 / 0.8);
+  --glass-border: oklch(1 0 0 / 0.1);
+  --glass-shadow: oklch(0 0 0 / 0.15);
   --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.21 0.006 285.885);

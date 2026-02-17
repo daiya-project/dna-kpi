@@ -47,11 +47,19 @@ middleware.ts         # Next.js middleware (Supabase session refresh)
 
 ## Creating New Components
 
-When a new component needs to be created, **do not create it immediately.** Instead:
+**MANDATORY:** When a new component needs to be created, **do not create it immediately.** Creating a component without prior user confirmation is **not allowed.**
 
-1. **Confirm the folder (and path)** where the component will live—check existing structure and naming (e.g. under `components/`, `app/<route>/_components/`, or common UI).
-2. **Present the proposed folder/path** to the user and ask for confirmation.
-3. **Create the component** only after the user confirms the folder name and location.
+1. **Propose first.** Before writing any component file, you **must** present a proposal to the user that includes:
+   - **Folder and path** where the component will live (e.g. `components/common/`, `app/(dashboard)/dashboard/_components/`), consistent with existing structure and naming.
+   - **Server vs Client:** Whether the component will be a **Server Component** (default; no `"use client"`) or a **Client Component** (needs `"use client"` because it uses hooks, event handlers, or browser APIs). State the choice and brief reason.
+   - **Reuse of existing libraries:** Whether and how **Shadcn/ui** or other project-approved libraries can be used (e.g. “use Shadcn `Tabs`”, “use existing `Button` from `components/ui/`”). Prefer reusing existing UI over introducing new patterns.
+2. **Wait for confirmation.** Ask the user to confirm the proposed path, Server/Client choice, and library usage.
+3. **Create only after confirmation.** Create the component **only** after the user explicitly confirms the proposal (or agrees to an adjusted proposal).
+
+## Workflow and Roadmap
+
+- **Always check `@.cursor/rules/02-project-roadmap.mdc`** before starting any task to understand the current phase and context.
+- **Update the roadmap**: When a task is completed, mark it as checked (`[x]`) in `02-project-roadmap.mdc` and suggest the next step from the list.
 
 ## Communication and Documentation Language
 

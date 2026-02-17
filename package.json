@@ -1,5 +1,5 @@
 {
-  "name": "dna-kpi",
+  "name": "next-tailwind-shadcn-boilerplate",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,13 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "update-types": "npx supabase gen types typescript --project-id lmftwznuhgphousfojpb > types/database.types.ts"
+    "update-types": "npx supabase gen types typescript --project-id lmftwznuhgphousfojpb --schema dna_kpi > types/database.types.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.95.3",
+    "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.34.0",
     "lucide-react": "^0.564.0",
     "next": "16.1.6",
     "radix-ui": "^1.4.3",

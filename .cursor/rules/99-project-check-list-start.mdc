@@ -1,5 +1,4 @@
 ---
-description: Checklist for initial project setup — verify before starting development
 alwaysApply: false
 ---
 
@@ -67,7 +66,7 @@ alwaysApply: false
 
 - [ ] `.cursor/rules/` folder exists with project rule files (`.mdc`)
 - [ ] `.cursor/rules/caption/` folder exists for Korean caption files
-- [ ] *(If using shared rules from `_cursor-rules`)*: `"rules:sync"` script is defined in `package.json` scripts. Skip if this project uses only project-local rules.
+- [ ] _(If using shared rules from `_cursor-rules`)_: `"rules:sync"` script is defined in `package.json` scripts. Skip if this project uses only project-local rules.
 
 ### Shared rules (symbolic links)
 

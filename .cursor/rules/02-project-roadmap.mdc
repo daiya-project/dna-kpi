@@ -1,0 +1,73 @@
+---
+description: The master plan for the dna-kpi project. Tracks progress, current focus, and future milestones.
+globs: "*"
+---
+
+# Project Roadmap: DNA-KPI
+
+## 🧠 AI Instructions (Meta Rules)
+1. **Context First**: Read this file to understand the current project phase before generating code.
+2. **Auto-Update**: After successfully implementing a feature, you must:
+   - Mark the corresponding task as completed (`[x]`).
+   - If a phase is complete, move the "Current Status" to the next phase.
+   - Ask the user if they want to proceed to the next task.
+
+## Overall App Structure
+
+- **Header**: Use Shadcn **Tabs** to separate sections — **summary**, **kr**, **us** (one tab per section).
+- **Top**: Filters and table controls (e.g. year, quarter, month toggles).
+- **Bottom**: Content area — **TanStack Table** for goal revenue, achieved revenue, achievement rate, profit rate, and related metrics.
+
+## Current Status
+**Phase:** Phase 7 complete — All-year continuous scroll, Year Navigator stepper, MONTHLY vertical label, YYYY-MM columns (no quarter totals), horizontal scroll spy  
+*(Update this line when the current phase changes.)*
+
+## Implementation Phases
+
+### Phase 0 — Foundation
+- [x] Project setup (Next.js, Supabase, Tailwind, Shadcn/ui)
+- [x] Database types generated and app-db types aligned
+- [x] dna_kpi schema / monthly_kpi table defined (see 41-data-structure; no auth per project)
+
+### Phase 1 — Data & API
+- [x] lib/api KPI fetch (fetchMonthlyKpi)
+- [x] lib/logic aggregation + types (app-db.types, categories config)
+
+### Phase 2 — UI Shell
+- [x] Layout and globals.css
+- [x] Header with Shadcn Tabs (summary, kr, us)
+- [x] ControlBar (category filter), BookmarkTabs, client boundaries
+
+### Phase 3 — Core Features
+- [x] TanStack Table (goal revenue, achieved, achievement rate, profit rate)
+- [x] Connect table to lib/api data (server fetch, buildKpiTableSections)
+- [x] Category sections and subtotal rows; month/quarter/YTD columns
+
+### Phase 4 — Summary & Filters
+- [x] Summary cards with real YTD from API
+- [x] Zustand store (dashboard filter: region); URL sync for region
+- [x] Region filter → URL update → server refetch; year is scroll-only (no refetch)
+
+### Phase 5 — UX
+- [x] Scroll spy (IntersectionObserver, useEffect cleanup) — vertical (category sections)
+- [x] Loading (Suspense + DashboardPageSkeleton), error state
+- [x] Year Navigator stepper in header ([<] year [>]); scroll to year column, no data reload
+
+### Phase 6 — Glassmorphism & Table UX
+- [x] Glassmorphism (ref): table styles (max-w-7xl, backdrop-blur, border-glass), CategoryConfig.gradient
+- [x] v0 UI migration Phase 1: Framer Motion (BookmarkTabs, KpiTable), ControlBar, Summary styles
+- [x] (Previous) Quarter collapse/expand, CSS progress bar → later switched to month-column-only layout
+
+### Phase 7 — All-Year Continuous Scroll
+- [x] Data: remove year filter; fetchMonthlyKpi loads full range, buildMonthlyTableSections(rows) without year
+- [x] Table columns: YYYY-MM only (oldest→newest), no quarter total columns; getMonthsFromRows / getMonthsForYear
+- [x] Year Navigator: Select removed → Stepper [<] year [>]; click scrolls to #col-year-YYYY (no reload)
+- [x] Horizontal scroll spy: navigator year updates on horizontal scroll (getBoundingClientRect)
+- [x] Vertical Section Label: "MONTHLY" vertical label on the left of each section (rowSpan, writing-mode vertical, bg-muted/30)
+- [x] Sticky: Section Label column + Metric column fixed on the left (inside overflow-x-auto)
+
+## Future Milestones
+- [x] Glassmorphism (ref) applied (docs): gradient, table styles
+- [x] v0 UI migration Phase 1 (temp/v0-ui-migration-spec.md)
+- [x] All-year continuous scroll + Year Navigator stepper + MONTHLY vertical label
+- [ ] *(Add next planned features here.)*
