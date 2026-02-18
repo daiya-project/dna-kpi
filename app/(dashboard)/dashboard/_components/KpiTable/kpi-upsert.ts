@@ -34,7 +34,7 @@ export async function kpiUpsert(
 
   const supabase = await createClient();
 
-  if (id != null && id !== undefined && Number.isFinite(Number(id))) {
+  if (id != null && Number.isFinite(Number(id))) {
     const { error } = await supabase
       .schema("dna_kpi")
       .from("monthly_kpi")

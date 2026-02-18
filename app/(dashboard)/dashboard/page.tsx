@@ -4,6 +4,7 @@ import { DashboardPageClient } from "./_components/Dashboard/DashboardPageClient
 import { DashboardSummaryComingSoon } from "./_components/Dashboard/DashboardSummaryComingSoon";
 import { categories } from "@/lib/config/categories";
 import { fetchMonthlyKpi } from "@/lib/api/kpi";
+import { getYearsFromMonthStrings } from "@/lib/date-utils";
 import {
   buildMonthlyTableSections,
   buildMonthToRowIdMap,
@@ -12,12 +13,6 @@ import { buildSummaryYtdByCategory } from "@/lib/logic/kpi-card";
 
 interface PageProps {
   searchParams: Promise<{ region?: string; year?: string }>;
-}
-
-/** Derive sorted years from YYYY-MM month list (for year navigator). */
-function getYearsFromMonths(months: string[]): number[] {
-  const set = new Set(months.map((m) => parseInt(m.slice(0, 4), 10)));
-  return Array.from(set).sort((a, b) => a - b);
 }
 
 export default async function DashboardPage({ searchParams }: PageProps) {
@@ -50,7 +45,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     error = e instanceof Error ? e.message : "Failed to load KPI data";
   }
 
-  const initialYears = getYearsFromMonths(months);
+  const initialYears = getYearsFromMonthStrings(months);
   const initialYear =
     params.year != null ? parseInt(params.year, 10) : currentYear;
 

@@ -23,3 +23,8 @@ export interface KpiEditDraft {
   monthly: number;
   daily: number;
 }
+
+/** Display label for edit field (Target vs Achievement). */
+export function getMetricLabel(field: KpiEditField): string {
+  return field === "target" ? "Target" : "Achievement";
+}

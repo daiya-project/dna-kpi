@@ -59,3 +59,8 @@ export const categories: CategoryConfig[] = [
     gradient: "from-amber/60 to-amber/30",
   },
 ];
+
+/** Resolve category label by id (for modals, headers). Falls back to id if not found. */
+export function getCategoryLabel(categoryId: string): string {
+  return categories.find((c) => c.id === categoryId)?.label ?? categoryId;
+}

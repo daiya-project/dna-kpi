@@ -1,5 +1,28 @@
 "use client";
 
+/**
+ * KpiTableSection — 역할 정리
+ *
+ * 하나의 카테고리(섹션)에 해당하는 테이블 본문(<tbody>)을 렌더링하는 컴포넌트.
+ *
+ * 1. 렌더 구조
+ *    - 섹션 헤더 행: 카테고리 라벨·색상 (config)
+ *    - QUARTERLY 블록: 분기별 요약. showQuarterlyProgress에 따라 1행(ProgressBar) 또는 6행(메트릭별) 뷰
+ *    - MONTHLY 블록: 월별 상세. collapsedMonths에 따라 6행 또는 접힌 1행
+ *    - 구분용 spacer 행
+ *
+ * 2. 컬럼/접기
+ *    - displayColumns를 분기 단위(columnGroups)로 묶어, collapsedQuarterPeriods에 따라 분기별 월 컬럼 숨김/요약만 표시
+ *    - QUARTERLY 1행 뷰 시 분기별 QuarterProgressBar 렌더 (Target/Achievement 합산은 calculateQuarterAggregates)
+ *
+ * 3. 편집
+ *    - region이 kr/us일 때, editableMetrics에 포함된 MONTHLY 월 셀 더블클릭 → onEnterEditMode(컨텍스트·초기 draft) 호출 (실제 입력은 모달)
+ *    - 셀 표시는 formatNumber/formatPercent로만; 편집 UI는 KpiUpsertModal에서 담당
+ *
+ * 4. 상태 소스
+ *    - collapsedMonths, collapsedQuarterPeriods, showQuarterlyProgress, editContext 등은 부모(KpiTable + useKpiTableCollapse)에서 주입
+ */
+
 import { Fragment } from "react";
 import { TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -9,9 +32,19 @@ import type {
   MonthlyTableSection,
   MonthlyMetricRow,
 } from "@/lib/logic/kpi-table-data";
+import { METRIC_DISPLAY_LABELS } from "@/lib/config/kpi-table-sections";
+import type { MetricId } from "@/lib/config/kpi-table-sections";
 import { getQuarterFromMonth } from "@/lib/date-utils";
 import { formatNumber, formatPercent } from "@/lib/number-utils";
+import { regionToCountry } from "@/types/app-db.types";
 import type { TableSectionConfig } from "./KpiTable";
+import {
+  DATA_CELL_CLASS,
+  LABEL_COLUMN_WIDTH,
+  SECTION_LABEL_MONTHLY,
+  SECTION_LABEL_QUARTERLY,
+  SUMMARY_COL_CELL_CLASS,
+} from "./constants";
 import { QuarterProgressBar } from "./QuarterProgressBar";
 import type { KpiCellEditContext, KpiEditDraft } from "./types";
 
@@ -38,19 +71,19 @@ interface KpiTableSectionProps {
   onEnterEditMode: (ctx: KpiCellEditContext, initial: KpiEditDraft) => void;
   onDraftChange: (draft: KpiEditDraft) => void;
   editableMetrics: readonly string[];
+  /** If false, QUARTERLY block is not rendered. */
+  showQuarterlyBlock: boolean;
+  /** If false, MONTHLY block is not rendered. */
+  showMonthlyBlock: boolean;
+  /** Rows to render in QUARTERLY block (filtered/ordered by section display config). */
+  quarterlyRows: MonthlyMetricRow[];
+  /** Rows to render in MONTHLY block (filtered/ordered by section display config). */
+  monthlyRows: MonthlyMetricRow[];
 }
 
-const LABEL_COLUMN_WIDTH = "2rem";
-const SECTION_LABEL_QUARTERLY = "QUARTERLY";
-const SECTION_LABEL_MONTHLY = "MONTHLY";
-const SUMMARY_COL_CELL_CLASS =
-  "border-r border-glass-border px-3 py-1.5 text-right font-mono text-xs tabular-nums font-semibold bg-slate-100/50 dark:bg-slate-800/50";
-const DATA_CELL_CLASS =
-  "border-r border-glass-border px-3 py-1.5 text-right font-mono text-xs tabular-nums";
-
 function getFieldFromMetric(metric: string): "target" | "actual" | null {
-  if (metric === "Target" || metric === "Daily Target") return "target";
-  if (metric === "Achievement" || metric === "Daily Achievement") return "actual";
+  if (metric === "target" || metric === "daily_target") return "target";
+  if (metric === "achievement" || metric === "daily_achievement") return "actual";
   return null;
 }
 
@@ -61,10 +94,10 @@ function getInitialDraft(
   field: "target" | "actual",
 ): KpiEditDraft {
   const idx = months.indexOf(ym);
-  const targetRow = section.rows.find((r) => r.metric === "Target");
-  const dailyTargetRow = section.rows.find((r) => r.metric === "Daily Target");
-  const actualRow = section.rows.find((r) => r.metric === "Achievement");
-  const dailyActualRow = section.rows.find((r) => r.metric === "Daily Achievement");
+  const targetRow = section.rows.find((r) => r.metric === "target");
+  const dailyTargetRow = section.rows.find((r) => r.metric === "daily_target");
+  const actualRow = section.rows.find((r) => r.metric === "achievement");
+  const dailyActualRow = section.rows.find((r) => r.metric === "daily_achievement");
   if (field === "target") {
     const monthly = (targetRow?.values ?? [])[idx] ?? 0;
     const daily = (dailyTargetRow?.values ?? [])[idx] ?? 0;
@@ -90,8 +123,8 @@ function calculateQuarterAggregates(
   months: string[],
   quarterId: string,
 ): { target: number; actual: number } | null {
-  const targetRow = section.rows.find((r) => r.metric === "Target");
-  const actualRow = section.rows.find((r) => r.metric === "Achievement");
+  const targetRow = section.rows.find((r) => r.metric === "target");
+  const actualRow = section.rows.find((r) => r.metric === "achievement");
 
   if (!targetRow || !actualRow) return null;
 
@@ -141,11 +174,19 @@ export function KpiTableSection({
   onEnterEditMode,
   onDraftChange,
   editableMetrics = [],
+  showQuarterlyBlock,
+  showMonthlyBlock,
+  quarterlyRows,
+  monthlyRows,
 }: KpiTableSectionProps) {
-  const monthlyRowCount = (section?.rows ?? []).length;
+  const monthlyRowCount = monthlyRows.length;
   const monthlyCollapsed = collapsedMonths.has(`${categoryId}-monthly`);
   const isQuarterlyProgressView = showQuarterlyProgress.has(categoryId);
-  const country = region === "kr" || region === "us" ? region : undefined;
+
+  function getRowLabel(metric: string): string {
+    return METRIC_DISPLAY_LABELS[metric as MetricId] ?? metric;
+  }
+  const country = regionToCountry(region);
   const canEdit = country !== undefined;
   const editableSet = new Set(editableMetrics);
 
@@ -253,8 +294,8 @@ export function KpiTableSection({
         ))}
       </TableRow>
 
-      {/* Quarterly row group: 1 row (progress view) or 6 rows (month values) */}
-      {isQuarterlyProgressView ? (
+      {/* Quarterly row group: 1 row (progress view) or N rows (month values). Omit if showQuarterlyBlock is false or no rows. */}
+      {showQuarterlyBlock && quarterlyRows.length > 0 && (isQuarterlyProgressView ? (
         <TableRow
           className={cn(
             "border-b border-border/30 transition-colors hover:bg-secondary/30",
@@ -341,7 +382,7 @@ export function KpiTableSection({
           })}
         </TableRow>
       ) : (
-        (section?.rows ?? []).map((row, rowIdx) => (
+        quarterlyRows.map((row, rowIdx) => (
           <TableRow
             key={`${categoryId}-quarterly-${rowIdx}-${row.metric}`}
             className={cn(
@@ -351,7 +392,7 @@ export function KpiTableSection({
           >
             {rowIdx === 0 && (
               <TableCell
-                rowSpan={(section?.rows ?? []).length}
+                rowSpan={quarterlyRows.length}
                 className="sticky left-0 z-30 w-8 min-w-8 border-r border-glass-border bg-background/95 backdrop-blur-sm align-middle py-2 cursor-pointer select-none hover:bg-secondary/50 transition-colors"
                 style={{
                   width: LABEL_COLUMN_WIDTH,
@@ -372,7 +413,7 @@ export function KpiTableSection({
                 isHighlighted && config?.lightColor,
               )}
             >
-              {row.metric}
+              {getRowLabel(row.metric)}
             </TableCell>
             {columnGroups.map((group, groupIdx) => {
               if (group.type === "quarter") {
@@ -438,10 +479,10 @@ export function KpiTableSection({
             })}
           </TableRow>
         ))
-      )}
+      ))}
 
-      {/* Monthly data rows */}
-      {!monthlyCollapsed && (section?.rows ?? []).map((row, rowIdx) => (
+      {/* Monthly data rows. Omit if showMonthlyBlock is false or no rows. */}
+      {showMonthlyBlock && monthlyRows.length > 0 && !monthlyCollapsed && monthlyRows.map((row, rowIdx) => (
         <TableRow
           key={`${categoryId}-${rowIdx}-${row.metric}`}
           className={cn(
@@ -474,7 +515,7 @@ export function KpiTableSection({
               isHighlighted && config?.lightColor,
             )}
           >
-            {row.metric}
+            {getRowLabel(row.metric)}
           </TableCell>
 
           {/* Render columns with quarter collapse logic */}
@@ -582,8 +623,8 @@ export function KpiTableSection({
         </TableRow>
       ))}
 
-      {/* Monthly collapsed state: show single row with chevron */}
-      {monthlyCollapsed && (
+      {/* Monthly collapsed state: show single row with chevron. Only when block is shown. */}
+      {showMonthlyBlock && monthlyCollapsed && (
         <TableRow
           className={cn(
             "border-b border-border/30 transition-colors hover:bg-secondary/30",

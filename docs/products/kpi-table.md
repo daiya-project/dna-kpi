@@ -2,7 +2,7 @@
 
 ## Document info
 - **Created:** 2025-02-18 00:00:00
-- **Last updated:** 2026-02-18 18:00:00
+- **Last updated:** 2026-02-18 20:00:00
 
 ## Revision history
 | Date | Description |
@@ -10,19 +10,23 @@
 | 2025-02-18 00:00:00 | Initial version. |
 | 2026-02-18 12:00:00 | 셀 인라인 편집 모드 추가: KpiUpsertController, kpi-upsert, types. Covered files 및 State→Action 보강. |
 | 2026-02-18 18:00:00 | 편집 UI를 모달(KpiUpsertModal)로 전환. 로컬 draft로 입력 지연 개선, 저장 시 onSave(draft). 자리 구분자 표시/제거(@/lib/string-utils). Covered files에서 KpiUpsertController 제거·KpiUpsertModal 추가. |
+| 2026-02-18 20:00:00 | 섹션·블록별 표시 설정: SectionTableDisplayConfig, kpi-table-sections.ts. QUARTERLY/MONTHLY 블록·행 필터(showQuarterly/showMonthly, visibleMetricsQuarterly/Monthly). 메트릭 ID(snake_case) 공통화. |
 
 ## Covered files
 이 문서가 다루는 파일. **아래 파일 중 하나를 수정하면 이 문서를 갱신한다** (Last updated, Revision history, 그리고 동작/상태가 바뀌었으면 본문).
 
 | Path | Role |
 |------|------|
-| `@/app/(dashboard)/dashboard/_components/KpiTable/KpiTable.tsx` | 루트 컴포넌트, 편집 모드 상태·저장(handleSave(draft)) |
-| `@/app/(dashboard)/dashboard/_components/KpiTable/KpiTableSection.tsx` | 섹션 tbody, QUARTERLY/MONTHLY 행·접기 UI, 편집 가능 셀 더블클릭 → 모달 오픈 |
+| `@/app/(dashboard)/dashboard/_components/KpiTable/KpiTable.tsx` | 루트 컴포넌트, 편집 모드 상태·저장(handleSave(draft)), 섹션별 displayConfig resolve·quarterlyRows/monthlyRows 전달 |
+| `@/app/(dashboard)/dashboard/_components/KpiTable/KpiTableSection.tsx` | 섹션 tbody, QUARTERLY/MONTHLY 행·접기 UI, showQuarterlyBlock/showMonthlyBlock·quarterlyRows/monthlyRows로 블록/행 표시, 편집 가능 셀 더블클릭 → 모달 오픈 |
 | `@/app/(dashboard)/dashboard/_components/KpiTable/KpiTableHeader.tsx` | 헤더, 분기 컬럼 접기 |
+| `@/app/(dashboard)/dashboard/_components/KpiTable/constants.ts` | 테이블 레이아웃 상수 (LABEL_COLUMN_WIDTH, SUMMARY_COL_* 등) |
 | `@/app/(dashboard)/dashboard/_components/KpiTable/QuarterProgressBar.tsx` | 분기별 ProgressBar |
 | `@/app/(dashboard)/dashboard/_components/KpiTable/KpiUpsertModal.tsx` | 편집 모달(Dialog): Monthly/Daily 입력, 자리 구분자 표시, Unmap 체크박스, 취소/저장, 로컬 draft |
 | `@/app/(dashboard)/dashboard/_components/KpiTable/kpi-upsert.ts` | Server Action: monthly_kpi upsert (id 있으면 update, 없으면 insert) |
-| `@/app/(dashboard)/dashboard/_components/KpiTable/types.ts` | 편집 컨텍스트·드래프트 타입 (KpiCellEditContext, KpiEditDraft) |
+| `@/app/(dashboard)/dashboard/_components/KpiTable/types.ts` | 편집 컨텍스트·드래프트 타입 (KpiCellEditContext, KpiEditDraft), getMetricLabel |
+| `@/lib/config/kpi-table-sections.ts` | 섹션별 테이블 표시 설정(SectionTableDisplayConfig), METRIC_IDS·METRIC_DISPLAY_LABELS, getSectionTableDisplayConfig, filterAndOrderMetricRows |
+| `@/lib/logic/kpi-table-data.ts` | buildMonthlyTableSections, createEmptySection, MonthlyMetricRow(metric = 메트릭 ID). METRIC_IDS 순서로 행 구성. |
 | `@/hooks/useKpiTableCollapse.ts` | 접기/펼치기 상태 및 토글 |
 
 ## 1. Overview
@@ -99,6 +103,14 @@
   - `KpiTableSection`은 `showQuarterlyProgress.has(categoryId)`로 1행 뷰 여부를 결정하고, `collapsedMonths.has(\`${categoryId}-monthly\`)`로 MONTHLY 접힘 여부를 결정한다.
   - `KpiTableHeader`는 `collapsedQuarterPeriods`로 각 분기 컬럼 표시/숨김을 결정하고, Q1 Total 등 클릭 시 `onToggleQuarterPeriod`를 호출한다.
 
+### 섹션·블록별 표시 설정
+
+- **설정 소스:** `@/lib/config/kpi-table-sections.ts`. 카테고리(스타일)는 `categories.ts` / `dashboard-sections.ts`, **테이블에서 어떻게 보일지**(블록·행 표시)만 여기서 정의.
+- **타입:** `SectionTableDisplayConfig` — `sectionId`, `showQuarterly?`, `showMonthly?`, `visibleMetricsQuarterly?`, `visibleMetricsMonthly?`. 미지정 시 기본값: 블록 둘 다 표시, 행 6개 전체.
+- **메트릭 ID:** `METRIC_IDS` 순서는 `target` → `achievement` → `achievement_rate` → `daily_target` → `daily_achievement` → `daily_achievement_rate`. `MonthlyMetricRow.metric`과 `visibleMetrics*`는 이 ID(snake_case) 사용. 표시 라벨은 `METRIC_DISPLAY_LABELS`.
+- **흐름:** `KpiTable`에서 `getSectionTableDisplayConfig(categoryId)`로 설정 조회 → `showQuarterlyBlock`/`showMonthlyBlock` 및 `filterAndOrderMetricRows(section.rows, visibleMetricsQuarterly/Monthly)`로 `quarterlyRows`/`monthlyRows` 계산 → `KpiTableSection`에 전달. Section은 `showQuarterlyBlock === false`이면 QUARTERLY 블록 전체 미렌더, `showMonthlyBlock === false`이면 MONTHLY 블록 전체 미렌더. 행이 0개인 블록도 미렌더.
+- **예:** CM은 쿼터리에서 요약 3행만, 먼슬리에서 6행 전체. FR은 `showQuarterly: false`로 쿼터리 블록 없음. 그 외 섹션은 설정 없음 → 기본값(블록·행 전체).
+
 ## 4. AI Implementation Guide (For vibe coding)
 
 ### State → Action → Implementation (required)
@@ -122,8 +134,8 @@
 
 ### Dependencies
 
-- `KpiTable` → `useKpiTableCollapse`, `KpiTableHeader`, `KpiTableSection`, `KpiUpsertModal`; `buildDisplayColumns` from `@/lib/logic/kpi-table-data`; `kpiUpsert` from `./kpi-upsert`; `KpiCellEditContext`, `KpiEditDraft` from `./types`.
-- `KpiTableSection` → `QuarterProgressBar`, `getQuarterFromMonth`, `formatNumber`/`formatPercent`, `getInitialDraft` (local), `getFieldFromMetric` (local); types from `./types`. (편집 입력은 모달에서만; 셀은 더블클릭으로 모달 오픈만.)
+- `KpiTable` → `useKpiTableCollapse`, `KpiTableHeader`, `KpiTableSection`, `KpiUpsertModal`; `buildDisplayColumns` from `@/lib/logic/kpi-table-data`; `getSectionTableDisplayConfig`, `filterAndOrderMetricRows` from `@/lib/config/kpi-table-sections`; `kpiUpsert` from `./kpi-upsert`; `KpiCellEditContext`, `KpiEditDraft` from `./types`.
+- `KpiTableSection` → `QuarterProgressBar`, `METRIC_DISPLAY_LABELS` from `@/lib/config/kpi-table-sections`; `getQuarterFromMonth`, `formatNumber`/`formatPercent`, `getInitialDraft` (local), `getFieldFromMetric` (local); types from `./types`. (편집 입력은 모달에서만; 셀은 더블클릭으로 모달 오픈만.)
 - `KpiTableHeader` → `getQuarterFromMonth`, `DisplayColumn` type.
 - `KpiUpsertModal` → `Dialog`, `Button`, `Checkbox`, `Input` (ui); `getDaysInMonth` from `@/lib/date-utils`; `monthlyToDaily`, `dailyToMonthly`, `parseNumber` from `@/lib/number-utils`; `formatWithThousandSeparator`, `stripThousandSeparator` from `@/lib/string-utils`; types from `./types`.
 - `kpi-upsert.ts` → `createClient` from `@/lib/supabase/server`, `MonthlyKpiUpdatePayload` from `@/types/app-db.types`.

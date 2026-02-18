@@ -1,9 +1,11 @@
 /**
  * Build KPI table sections from monthly rows. 41-data-structure: val_*, _rate.
  * Used by dashboard table; data comes from lib/api (no fetch here).
+ * Row metric IDs match METRIC_IDS in lib/config/kpi-table-sections.ts.
  */
 
 import type { MonthlyKpiRow } from "@/types/app-db.types";
+import { METRIC_IDS } from "@/lib/config/kpi-table-sections";
 import {
   getMonthsForYear,
   getQuarterFromMonth,
@@ -11,6 +13,7 @@ import {
   isLastMonthOfQuarter,
   toYearMonth,
 } from "@/lib/date-utils";
+import { percentRate } from "@/lib/number-utils";
 
 /**
  * Build month → row id map for one section (category) and country (kr/us).
@@ -36,7 +39,6 @@ export function buildMonthToRowIdMap(
   }
   return out;
 }
-import { percentRate } from "@/lib/number-utils";
 
 // --- Monthly column table (YYYY-MM, oldest to newest, with Q1/Q2/Q3/Q4/Year per year) ---
 
@@ -106,14 +108,11 @@ export function createEmptySection(
   const zeros = months.map(() => 0);
   return {
     category: sectionId,
-    rows: [
-      { metric: "Target", values: [...zeros] },
-      { metric: "Daily Target", values: [...zeros] },
-      { metric: "Achievement", values: [...zeros] },
-      { metric: "Achievement Rate", values: [...zeros], isRate: true },
-      { metric: "Daily Achievement", values: [...zeros] },
-      { metric: "Daily Achievement Rate", values: [...zeros], isRate: true },
-    ],
+    rows: METRIC_IDS.map((id) => ({
+      metric: id,
+      values: [...zeros],
+      isRate: id === "achievement_rate" || id === "daily_achievement_rate",
+    })),
   };
 }
 
@@ -169,12 +168,12 @@ export function buildMonthlyTableSections(
     sections.push({
       category: cat,
       rows: [
-        { metric: "Target", values: targetValues },
-        { metric: "Daily Target", values: dailyTargetValues },
-        { metric: "Achievement", values: actualValues },
-        { metric: "Achievement Rate", values: rateValues, isRate: true },
-        { metric: "Daily Achievement", values: dailyActualValues },
-        { metric: "Daily Achievement Rate", values: dailyRateValues, isRate: true },
+        { metric: METRIC_IDS[0]!, values: targetValues },
+        { metric: METRIC_IDS[1]!, values: actualValues },
+        { metric: METRIC_IDS[2]!, values: rateValues, isRate: true },
+        { metric: METRIC_IDS[3]!, values: dailyTargetValues },
+        { metric: METRIC_IDS[4]!, values: dailyActualValues },
+        { metric: METRIC_IDS[5]!, values: dailyRateValues, isRate: true },
       ],
     });
   }

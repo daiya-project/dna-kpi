@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { AlertCircle } from "lucide-react";
+import { getCategoryLabel } from "@/lib/config/categories";
 import { getDaysInMonth } from "@/lib/date-utils";
 import { monthlyToDaily, dailyToMonthly, parseNumber } from "@/lib/number-utils";
 import {
@@ -19,6 +20,7 @@ import {
   stripThousandSeparator,
 } from "@/lib/string-utils";
 import type { KpiCellEditContext, KpiEditDraft } from "./types";
+import { getMetricLabel } from "./types";
 
 export type DrivingField = "monthly" | "daily";
 
@@ -37,10 +39,6 @@ interface KpiUpsertModalProps {
   onSave: (draft: KpiEditDraft) => void;
   editError: string | null;
   editPending: boolean;
-}
-
-function getMetricLabel(field: "target" | "actual"): string {
-  return field === "target" ? "Target" : "Achievement";
 }
 
 /**
@@ -65,12 +63,9 @@ export function KpiUpsertModal({
 
   const month = editContext?.month ?? "";
   const daysInMonth = getDaysInMonth(month);
-  const categoryLabel =
-    editContext?.category === "ads"
-      ? "Ads"
-      : editContext?.category === "media"
-        ? "Media"
-        : editContext?.category ?? "";
+  const categoryLabel = editContext?.category
+    ? getCategoryLabel(editContext.category)
+    : "";
   const metricLabel = editContext ? getMetricLabel(editContext.field) : "";
   const title =
     editContext && categoryLabel && metricLabel && month

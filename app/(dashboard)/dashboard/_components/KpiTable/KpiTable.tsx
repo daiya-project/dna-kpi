@@ -1,10 +1,15 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Table } from "@/components/ui/table";
 import type { MonthlyTableSection } from "@/lib/logic/kpi-table-data";
 import { buildDisplayColumns } from "@/lib/logic/kpi-table-data";
+import {
+  getSectionTableDisplayConfig,
+  filterAndOrderMetricRows,
+} from "@/lib/config/kpi-table-sections";
+import { regionToCountry } from "@/types/app-db.types";
 import { useKpiTableCollapse } from "@/hooks/useKpiTableCollapse";
 import { KpiTableHeader } from "./KpiTableHeader";
 import { KpiTableSection } from "./KpiTableSection";
@@ -34,7 +39,13 @@ interface KpiTableProps {
   region?: "summary" | "kr" | "us";
 }
 
-const EDITABLE_METRICS = ["Target", "Daily Target", "Achievement", "Daily Achievement"] as const;
+/** Metric IDs that allow cell edit (target/daily_target, achievement/daily_achievement). */
+const EDITABLE_METRIC_IDS = [
+  "target",
+  "daily_target",
+  "achievement",
+  "daily_achievement",
+] as const;
 
 export function KpiTable({
   months: monthsProp,
@@ -67,7 +78,7 @@ export function KpiTable({
 
   const columnCount = 2 + displayColumns.length;
   const isEditMode = editContext !== null;
-  const country = region === "kr" || region === "us" ? region : undefined;
+  const country = regionToCountry(region);
 
   const exitEditMode = useCallback(() => {
     setEditContext(null);
@@ -147,6 +158,17 @@ export function KpiTable({
           {sections.map((section) => {
             const categoryId = section?.category ?? "unknown";
             const config = getCategoryConfig(categoryId);
+            const displayConfig = getSectionTableDisplayConfig(categoryId);
+            const showQuarterlyBlock = displayConfig?.showQuarterly !== false;
+            const showMonthlyBlock = displayConfig?.showMonthly !== false;
+            const quarterlyRows = filterAndOrderMetricRows(
+              section?.rows ?? [],
+              displayConfig?.visibleMetricsQuarterly,
+            );
+            const monthlyRows = filterAndOrderMetricRows(
+              section?.rows ?? [],
+              displayConfig?.visibleMetricsMonthly,
+            );
             const isHighlighted = activeFilter === categoryId;
             const isDimmed = activeFilter !== null && !isHighlighted;
             const isEditingThis =
@@ -179,7 +201,11 @@ export function KpiTable({
                 unmapMonthlyDaily={unmapMonthlyDaily}
                 onEnterEditMode={handleEnterEditMode}
                 onDraftChange={noopDraftChange}
-                editableMetrics={EDITABLE_METRICS}
+                editableMetrics={EDITABLE_METRIC_IDS}
+                showQuarterlyBlock={showQuarterlyBlock}
+                showMonthlyBlock={showMonthlyBlock}
+                quarterlyRows={quarterlyRows}
+                monthlyRows={monthlyRows}
               />
             );
           })}

@@ -5,16 +5,13 @@ import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { getQuarterFromMonth } from "@/lib/date-utils";
 import type { DisplayColumn } from "@/lib/logic/kpi-table-data";
+import { LABEL_COLUMN_WIDTH, SUMMARY_COL_HEAD_CLASS } from "./constants";
 
 interface KpiTableHeaderProps {
   displayColumns: DisplayColumn[];
   collapsedQuarterPeriods: Set<string>;
   onToggleQuarterPeriod: (quarterKey: string) => void;
 }
-
-const LABEL_COLUMN_WIDTH = "2rem";
-const SUMMARY_COL_HEAD_CLASS =
-  "min-w-[90px] border-r border-glass-border text-right font-mono text-xs font-semibold bg-slate-100/50 dark:bg-slate-800/50";
 
 /**
  * Table header row with collapsible quarter columns.
