@@ -4,356 +4,29 @@
  */
 
 import type { MonthlyKpiRow } from "@/types/app-db.types";
+import {
+  getMonthsForYear,
+  getQuarterFromMonth,
+  getYearsFromMonthStrings,
+  isLastMonthOfQuarter,
+  toYearMonth,
+} from "@/lib/date-utils";
+import { percentRate } from "@/lib/number-utils";
 
-export const MONTH_LABELS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Q1",
-  "Apr",
-  "May",
-  "Jun",
-  "Q2",
-  "YTD",
-] as const;
+// --- Monthly column table (YYYY-MM, oldest to newest, with Q1/Q2/Q3/Q4/Year per year) ---
 
-/** Metric row labels for quarterly view (reference: glassmorphism-kpi-dashboard) */
-export const quarterlyMetricLabels = [
-  "Target",
-  "Daily Target",
-  "Achievement",
-  "Achievement Rate",
-  "Daily Achievement",
-  "Daily Achievement Rate",
-  "Daily Q/Q",
-] as const;
-
-export const monthlyMetricLabels = [
-  "Target",
-  "Daily Target",
-  "Achievement",
-  "Achievement Rate",
-  "Daily Achievement",
-  "Daily Achievement Rate",
-  "Daily M/M",
-] as const;
-
-export type MonthKey =
-  | "jan"
-  | "feb"
-  | "mar"
-  | "apr"
-  | "may"
-  | "jun";
-
-export interface KpiTableRow {
-  metric: string;
-  jan: number;
-  feb: number;
-  mar: number;
-  q1: number;
-  apr: number;
-  may: number;
-  jun: number;
-  q2: number;
-  ytd: number;
-  isSubtotal?: boolean;
-  /** achievement_rate (e.g. val_actual/val_target); optional */
-  achievement_rate_pct?: number;
-}
-
-/** Per-quarter block: 3 month values + quarter total, for collapsible UI */
-export interface QuarterMetricRow {
-  metric: string;
-  values: number[]; // [m1, m2, m3, quarterTotal] or [m4, m5, m6, quarterTotal]
-  isSubtotal?: boolean;
-  isRate?: boolean; // format as %
-}
-
-export interface QuarterBlock {
-  label: "Q1" | "Q2";
-  monthLabels: readonly string[];
-  rows: QuarterMetricRow[];
-  totalTarget: number;
-  totalAchievement: number;
-  achievementRatePct: number;
-}
-
-export interface KpiTableSection {
-  category: "ads" | "media";
-  rows: KpiTableRow[];
-  /** Quarter blocks for collapsible view (Q1, Q2) */
-  quarters: QuarterBlock[];
+/** Unique years from rows, sorted ascending. Delegates to date-utils. */
+export function getYearsFromRows(rows: MonthlyKpiRow[]): number[] {
+  return getYearsFromMonthStrings(rows.map((r) => toYearMonth(r.month)));
 }
 
 /**
- * Pivot MonthlyKpiRow[] by year and category into sections with monthly/Q1/Q2/YTD.
- * Uses system date for current year when year not provided (31-term-main).
- * Also builds quarter blocks (quarters[]) for collapsible table UI and metric labels.
+ * All months for every year present in data: 2024-01..2024-12, 2025-01..2025-12, ...
+ * Use when table should show full years with Q1/Q2/Q3/Q4 and year total per year.
  */
-export function buildKpiTableSections(
-  rows: MonthlyKpiRow[],
-  year?: number,
-): KpiTableSection[] {
-  const y = year ?? new Date().getFullYear();
-  const monthKeys: MonthKey[] = ["jan", "feb", "mar", "apr", "may", "jun"];
-  const sections: KpiTableSection[] = [];
-
-  for (const cat of ["ads", "media"] as const) {
-    const byMonth: Record<MonthKey, number> = {
-      jan: 0,
-      feb: 0,
-      mar: 0,
-      apr: 0,
-      may: 0,
-      jun: 0,
-    };
-    const byMonthTarget: Record<MonthKey, number> = {
-      jan: 0,
-      feb: 0,
-      mar: 0,
-      apr: 0,
-      may: 0,
-      jun: 0,
-    };
-    const byMonthDailyActual: Record<MonthKey, number> = {
-      jan: 0,
-      feb: 0,
-      mar: 0,
-      apr: 0,
-      may: 0,
-      jun: 0,
-    };
-    const byMonthDailyTarget: Record<MonthKey, number> = {
-      jan: 0,
-      feb: 0,
-      mar: 0,
-      apr: 0,
-      may: 0,
-      jun: 0,
-    };
-
-    for (const r of rows) {
-      if (r.category !== cat) continue;
-      const monthStr = r.month.length >= 7 ? r.month.slice(5, 7) : r.month.slice(0, 2);
-      const m = parseInt(monthStr, 10);
-      if (m >= 1 && m <= 6) {
-        const key = monthKeys[m - 1];
-        byMonth[key] += Number(r.val_actual_monthly ?? r.val_actual_daily ?? 0);
-        byMonthTarget[key] += Number(r.val_target_monthly ?? r.val_target_daily ?? 0);
-        byMonthDailyActual[key] += Number(r.val_actual_daily ?? 0);
-        byMonthDailyTarget[key] += Number(r.val_target_daily ?? 0);
-      }
-    }
-
-    const q1Actual = byMonth.jan + byMonth.feb + byMonth.mar;
-    const q1Target = byMonthTarget.jan + byMonthTarget.feb + byMonthTarget.mar;
-    const q2Actual = byMonth.apr + byMonth.may + byMonth.jun;
-    const q2Target = byMonthTarget.apr + byMonthTarget.may + byMonthTarget.jun;
-    const q1 = q1Actual;
-    const q2 = q2Actual;
-    const ytd = q1 + q2;
-
-    const actualRow: KpiTableRow = {
-      metric: "Achieved Revenue",
-      jan: byMonth.jan,
-      feb: byMonth.feb,
-      mar: byMonth.mar,
-      q1,
-      apr: byMonth.apr,
-      may: byMonth.may,
-      jun: byMonth.jun,
-      q2,
-      ytd,
-    };
-
-    const goalRow: KpiTableRow = {
-      metric: "Goal Revenue",
-      jan: byMonthTarget.jan,
-      feb: byMonthTarget.feb,
-      mar: byMonthTarget.mar,
-      q1: q1Target,
-      apr: byMonthTarget.apr,
-      may: byMonthTarget.may,
-      jun: byMonthTarget.jun,
-      q2: q2Target,
-      ytd: q1Target + q2Target,
-    };
-
-    const rate = (v: number, t: number) => (t > 0 ? Math.round((v / t) * 1000) / 10 : 0);
-    const rateRow: KpiTableRow = {
-      metric: "Achievement Rate",
-      jan: rate(byMonth.jan, byMonthTarget.jan),
-      feb: rate(byMonth.feb, byMonthTarget.feb),
-      mar: rate(byMonth.mar, byMonthTarget.mar),
-      q1: rate(q1Actual, q1Target),
-      apr: rate(byMonth.apr, byMonthTarget.apr),
-      may: rate(byMonth.may, byMonthTarget.may),
-      jun: rate(byMonth.jun, byMonthTarget.jun),
-      q2: rate(q2Actual, q2Target),
-      ytd: rate(q1Actual + q2Actual, q1Target + q2Target),
-      achievement_rate_pct: rate(q1Actual + q2Actual, q1Target + q2Target),
-    };
-
-    const subtotalRow: KpiTableRow = {
-      ...actualRow,
-      metric: "Subtotal",
-      isSubtotal: true,
-    };
-
-    const q1DailyActual = (byMonthDailyActual.jan + byMonthDailyActual.feb + byMonthDailyActual.mar) / 3;
-    const q1DailyTarget = (byMonthDailyTarget.jan + byMonthDailyTarget.feb + byMonthDailyTarget.mar) / 3;
-    const q2DailyActual = (byMonthDailyActual.apr + byMonthDailyActual.may + byMonthDailyActual.jun) / 3;
-    const q2DailyTarget = (byMonthDailyTarget.apr + byMonthDailyTarget.may + byMonthDailyTarget.jun) / 3;
-
-    const quarterBlocks: QuarterBlock[] = [
-      {
-        label: "Q1",
-        monthLabels: ["Jan", "Feb", "Mar"],
-        totalTarget: q1Target,
-        totalAchievement: q1Actual,
-        achievementRatePct: rate(q1Actual, q1Target),
-        rows: [
-          {
-            metric: "Target",
-            values: [byMonthTarget.jan, byMonthTarget.feb, byMonthTarget.mar, q1Target],
-          },
-          {
-            metric: "Daily Target",
-            values: [
-              Math.round(byMonthDailyTarget.jan) || 0,
-              Math.round(byMonthDailyTarget.feb) || 0,
-              Math.round(byMonthDailyTarget.mar) || 0,
-              Math.round(q1DailyTarget) || 0,
-            ],
-          },
-          {
-            metric: "Achievement",
-            values: [byMonth.jan, byMonth.feb, byMonth.mar, q1Actual],
-          },
-          {
-            metric: "Achievement Rate",
-            values: [
-              rate(byMonth.jan, byMonthTarget.jan),
-              rate(byMonth.feb, byMonthTarget.feb),
-              rate(byMonth.mar, byMonthTarget.mar),
-              rate(q1Actual, q1Target),
-            ],
-            isRate: true,
-          },
-          {
-            metric: "Daily Achievement",
-            values: [
-              Math.round(byMonthDailyActual.jan) || 0,
-              Math.round(byMonthDailyActual.feb) || 0,
-              Math.round(byMonthDailyActual.mar) || 0,
-              Math.round(q1DailyActual) || 0,
-            ],
-          },
-          {
-            metric: "Daily Achievement Rate",
-            values: [
-              rate(byMonthDailyActual.jan, byMonthDailyTarget.jan),
-              rate(byMonthDailyActual.feb, byMonthDailyTarget.feb),
-              rate(byMonthDailyActual.mar, byMonthDailyTarget.mar),
-              rate(q1DailyActual, q1DailyTarget),
-            ],
-            isRate: true,
-          },
-          { metric: "Daily Q/Q", values: [0, 0, 0, 0], isRate: true },
-        ],
-      },
-      {
-        label: "Q2",
-        monthLabels: ["Apr", "May", "Jun"],
-        totalTarget: q2Target,
-        totalAchievement: q2Actual,
-        achievementRatePct: rate(q2Actual, q2Target),
-        rows: [
-          {
-            metric: "Target",
-            values: [byMonthTarget.apr, byMonthTarget.may, byMonthTarget.jun, q2Target],
-          },
-          {
-            metric: "Daily Target",
-            values: [
-              Math.round(byMonthDailyTarget.apr) || 0,
-              Math.round(byMonthDailyTarget.may) || 0,
-              Math.round(byMonthDailyTarget.jun) || 0,
-              Math.round((byMonthDailyTarget.apr + byMonthDailyTarget.may + byMonthDailyTarget.jun) / 3) || 0,
-            ],
-          },
-          {
-            metric: "Achievement",
-            values: [byMonth.apr, byMonth.may, byMonth.jun, q2Actual],
-          },
-          {
-            metric: "Achievement Rate",
-            values: [
-              rate(byMonth.apr, byMonthTarget.apr),
-              rate(byMonth.may, byMonthTarget.may),
-              rate(byMonth.jun, byMonthTarget.jun),
-              rate(q2Actual, q2Target),
-            ],
-            isRate: true,
-          },
-          {
-            metric: "Daily Achievement",
-            values: [
-              Math.round(byMonthDailyActual.apr) || 0,
-              Math.round(byMonthDailyActual.may) || 0,
-              Math.round(byMonthDailyActual.jun) || 0,
-              Math.round(q2DailyActual) || 0,
-            ],
-          },
-          {
-            metric: "Daily Achievement Rate",
-            values: [
-              rate(byMonthDailyActual.apr, byMonthDailyTarget.apr),
-              rate(byMonthDailyActual.may, byMonthDailyTarget.may),
-              rate(byMonthDailyActual.jun, byMonthDailyTarget.jun),
-              rate(q2DailyActual, q2DailyTarget),
-            ],
-            isRate: true,
-          },
-          { metric: "Daily Q/Q", values: [0, 0, 0, 0], isRate: true },
-        ],
-      },
-    ];
-
-    sections.push({
-      category: cat,
-      rows: [goalRow, actualRow, rateRow, subtotalRow],
-      quarters: quarterBlocks,
-    });
-  }
-
-  return sections;
-}
-
-// --- Monthly column table (YYYY-MM, oldest to newest, no quarter totals) ---
-
-/** Normalize month string to YYYY-MM (from YYYY-MM or YYYY-MM-DD). */
-function toYearMonth(month: string): string {
-  if (month.length >= 7) return month.slice(0, 7);
-  return month;
-}
-
-/** Unique months from rows, sorted ascending (oldest first). */
-export function getMonthsFromRows(rows: MonthlyKpiRow[]): string[] {
-  const set = new Set<string>();
-  for (const r of rows) {
-    set.add(toYearMonth(r.month));
-  }
-  return Array.from(set).sort();
-}
-
-/** All 12 months for a year (YYYY-01 .. YYYY-12). Use for fixed year view. */
-export function getMonthsForYear(year: number): string[] {
-  const y = String(year);
-  return ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"].map(
-    (m) => `${y}-${m}`,
-  );
+export function getMonthsForAllYearsInRows(rows: MonthlyKpiRow[]): string[] {
+  const years = getYearsFromRows(rows);
+  return years.flatMap((y) => getMonthsForYear(y));
 }
 
 /** One metric row for monthly table: values[i] = value for months[i]. */
@@ -368,6 +41,34 @@ export interface MonthlyTableSection {
   /** Section id (e.g. cm, fr, ads, media, mfr, apc, scr). */
   category: string;
   rows: MonthlyMetricRow[];
+}
+
+/** Display column: either a month (YYYY-MM) or a summary (Q1/Q2/Q3/Q4/Year). */
+export type DisplayColumn =
+  | { key: string; type: "month"; ym: string }
+  | { key: string; type: "summary"; label: string; quarterId?: string };
+
+/**
+ * Build column list with summary columns injected.
+ * After Mar (-03) → Q1 Total; after Jun (-06) → Q2 Total;
+ * after Sep (-09) → Q3 Total; after Dec (-12) → Q4 Total, Year Total.
+ */
+export function buildDisplayColumns(months: string[]): DisplayColumn[] {
+  const out: DisplayColumn[] = [];
+  for (const ym of months) {
+    out.push({ key: ym, type: "month", ym });
+    const mm = ym.slice(5, 7);
+    const quarter = getQuarterFromMonth(ym);
+    if (quarter && isLastMonthOfQuarter(mm)) {
+      const label = `Q${quarter.slice(1)} Total`;
+      out.push({ key: `${ym}-${quarter}`, type: "summary", label, quarterId: quarter });
+    }
+    if (mm === "12") {
+      const y = ym.slice(0, 4);
+      out.push({ key: `${y}-year`, type: "summary", label: "Year Total" });
+    }
+  }
+  return out;
 }
 
 /** Same metric row structure as buildMonthlyTableSections, but values are zeros. For placeholder sections. */
@@ -391,15 +92,18 @@ export function createEmptySection(
 
 /**
  * Build table data with one column per month (YYYY-MM).
- * If year is provided, columns are that year's 12 months (YYYY-01 .. YYYY-12); missing data shows as 0.
- * If year is omitted, columns are derived from rows only (oldest to newest).
+ * - If year is provided: that year only (12 months); missing data shows as 0.
+ * - If year is omitted: all years present in data, each year full 12 months in order
+ *   (2024-01..2024-12, 2025-01..2025-12, ...). Use with buildDisplayColumns for
+ *   [1,2,3월,Q1, 4,5,6월,Q2, 7,8,9월,Q3, 10,11,12월,Q4, 연도총합] per year.
  */
 export function buildMonthlyTableSections(
   rows: MonthlyKpiRow[],
   year?: number,
 ): { months: string[]; sections: MonthlyTableSection[] } {
   const months =
-    year !== undefined ? getMonthsForYear(year) : getMonthsFromRows(rows);
+    year !== undefined ? getMonthsForYear(year)
+      : getMonthsForAllYearsInRows(rows);
   const sections: MonthlyTableSection[] = [];
 
   type MonthAgg = { actual: number; target: number; dailyActual: number; dailyTarget: number };
@@ -419,7 +123,6 @@ export function buildMonthlyTableSections(
       byMonth.set(ym, agg);
     }
 
-    const rate = (v: number, t: number) => (t > 0 ? Math.round((v / t) * 1000) / 10 : 0);
     const values = (fn: (a: MonthAgg) => number) =>
       months.map((ym) => fn(byMonth.get(ym) ?? emptyAgg()));
 
@@ -429,11 +132,11 @@ export function buildMonthlyTableSections(
     const dailyActualValues = values((a) => Math.round(a.dailyActual) || 0);
     const rateValues = months.map((ym) => {
       const a = byMonth.get(ym) ?? emptyAgg();
-      return rate(a.actual, a.target);
+      return percentRate(a.actual, a.target);
     });
     const dailyRateValues = months.map((ym) => {
       const a = byMonth.get(ym) ?? emptyAgg();
-      return rate(a.dailyActual, a.dailyTarget);
+      return percentRate(a.dailyActual, a.dailyTarget);
     });
 
     sections.push({
@@ -450,24 +153,4 @@ export function buildMonthlyTableSections(
   }
 
   return { months, sections };
-}
-
-/** YTD total per category for summary cards */
-export function buildSummaryYtdByCategory(
-  rows: MonthlyKpiRow[],
-  year?: number,
-): Record<string, number> {
-  const y = year ?? new Date().getFullYear();
-  const out: Record<string, number> = { cm: 0, media: 0, ads: 0, "media-fee": 0 };
-
-  for (const r of rows) {
-    const ym = r.month.slice(0, 4);
-    if (ym !== String(y)) continue;
-    const val = Number(r.val_actual_monthly ?? r.val_actual_daily ?? 0);
-    if (r.category === "ads") out.ads += val;
-    if (r.category === "media") out.media += val;
-  }
-
-  out.cm = out.media + out.ads;
-  return out;
 }

@@ -1,9 +1,10 @@
 import { Suspense } from "react";
-import { DashboardPageClient } from "./_components/DashboardPageClient";
-import { DashboardPageSkeleton } from "./_components/DashboardPageSkeleton";
+import { PageSkeleton } from "@/components/common/PageSkeleton";
+import { DashboardPageClient } from "./_components/Dashboard/DashboardPageClient";
 import { categories } from "@/lib/config/categories";
 import { fetchMonthlyKpi } from "@/lib/api/kpi";
-import { buildMonthlyTableSections, buildSummaryYtdByCategory } from "@/lib/logic/kpi-table-data";
+import { buildMonthlyTableSections } from "@/lib/logic/kpi-table-data";
+import { buildSummaryYtdByCategory } from "@/lib/logic/kpi-card";
 
 interface PageProps {
   searchParams: Promise<{ region?: string; year?: string }>;
@@ -43,7 +44,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     params.year != null ? parseInt(params.year, 10) : currentYear;
 
   return (
-    <Suspense fallback={<DashboardPageSkeleton />}>
+    <Suspense fallback={<PageSkeleton />}>
       <DashboardPageClient
         categories={categories}
         initialMonths={months}

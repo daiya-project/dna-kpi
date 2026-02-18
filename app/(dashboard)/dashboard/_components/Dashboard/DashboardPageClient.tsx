@@ -3,8 +3,9 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DashboardHeader } from "./DashboardHeader";
-import { BookmarkTabs } from "./BookmarkTabs";
-import { KpiTable } from "./KpiTable";
+import { BookmarkTabs } from "../BookmarkTabs";
+import { KpiCard } from "../KpiTable/KpiCard";
+import { KpiTable } from "../KpiTable/KpiTable";
 import type { CategoryConfig } from "@/lib/config/categories";
 import {
   DASHBOARD_SECTION_IDS,
@@ -14,8 +15,7 @@ import {
 import type { MonthlyTableSection } from "@/lib/logic/kpi-table-data";
 import { createEmptySection } from "@/lib/logic/kpi-table-data";
 import { categories } from "@/lib/config/categories";
-import type { TableSectionConfig } from "./KpiTable";
-import { cn } from "@/lib/utils";
+import type { TableSectionConfig } from "../KpiTable/KpiTable";
 import { useDashboardFilterStore } from "@/stores/dashboardFilterStore";
 
 interface DashboardPageClientProps {
@@ -246,47 +246,15 @@ export function DashboardPageClient({
           )}
 
           <div className="mx-auto mb-8 grid max-w-7xl grid-cols-4 gap-4">
-            {categoriesProp.map((cat) => {
-              const ytd = initialSummaryYtd[cat.id] ?? 0;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => handleFilterChange(cat.id)}
-                  className={cn(
-                    "group rounded-xl border p-4 text-left backdrop-blur-md transition-all hover:shadow-lg",
-                    activeFilter === cat.id
-                      ? `${cat.lightColor} border-2 ${cat.borderColor} shadow-lg`
-                      : "border-glass-border bg-glass hover:bg-card",
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "inline-block size-2 rounded-full",
-                        cat.color,
-                      )}
-                    />
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {cat.label}
-                    </span>
-                  </div>
-                  <p
-                    className={cn(
-                      "mt-2 font-mono text-2xl font-bold tabular-nums",
-                      cat.fgColor,
-                    )}
-                  >
-                    {ytd >= 1000
-                      ? `$${(ytd / 1000).toFixed(0)}K`
-                      : ytd > 0
-                        ? `$${ytd.toFixed(0)}`
-                        : "—"}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">YTD Total</p>
-                </button>
-              );
-            })}
+            {categoriesProp.map((cat) => (
+              <KpiCard
+                key={cat.id}
+                category={cat}
+                value={initialSummaryYtd[cat.id] ?? 0}
+                isActive={activeFilter === cat.id}
+                onSelect={() => handleFilterChange(cat.id)}
+              />
+            ))}
           </div>
 
           <KpiTable

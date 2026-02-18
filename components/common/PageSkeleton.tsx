@@ -1,6 +1,10 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-export function DashboardPageSkeleton() {
+/**
+ * Full-page skeleton for loading states (e.g. Suspense fallback).
+ * Reusable across dashboard and other pages with similar layout.
+ */
+export function PageSkeleton() {
   return (
     <div className="relative min-h-screen bg-background">
       <div className="border-b border-border bg-background/80 px-6 py-3">
@@ -17,12 +21,12 @@ export function DashboardPageSkeleton() {
         </div>
       </div>
       <main className="px-6 py-8 pl-14">
-        <div className="mx-auto mb-8 grid max-w-6xl grid-cols-4 gap-4">
+        <div className="mx-auto mb-8 grid max-w-7xl grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-24 rounded-xl" />
           ))}
         </div>
-        <div className="mx-auto max-w-6xl space-y-2">
+        <div className="mx-auto max-w-7xl space-y-2">
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-12 w-full" />

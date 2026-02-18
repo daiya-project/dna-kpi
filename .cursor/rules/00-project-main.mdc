@@ -41,20 +41,36 @@ lib/
 types/                # Global type definitions
   database.types.ts   # Supabase auto-generated (npm run update-types)
   app-db.types.ts     # App-level re-exports of used tables/views
+docs/                 # Product and technical documentation
+  products/           # Component docs (per 24-code-component-docs); one .md per component
+planning/             # Planning documents before new components, functions, state, folders
 public/               # Static assets
 middleware.ts         # Next.js middleware (Supabase session refresh)
 ```
 
-## Creating New Components
+## Planning Before New Artifacts
 
-**MANDATORY:** When a new component needs to be created, **do not create it immediately.** Creating a component without prior user confirmation is **not allowed.**
+**MANDATORY:** When creating a **new component, function, state (store), or folder**, **do not create it immediately.** Creating such artifacts without a prior planning document is **not allowed.**
 
-1. **Propose first.** Before writing any component file, you **must** present a proposal to the user that includes:
-   - **Folder and path** where the component will live (e.g. `components/common/`, `app/(dashboard)/dashboard/_components/`), consistent with existing structure and naming.
-   - **Server vs Client:** Whether the component will be a **Server Component** (default; no `"use client"`) or a **Client Component** (needs `"use client"` because it uses hooks, event handlers, or browser APIs). State the choice and brief reason.
-   - **Reuse of existing libraries:** Whether and how **Shadcn/ui** or other project-approved libraries can be used (e.g. “use Shadcn `Tabs`”, “use existing `Button` from `components/ui/`”). Prefer reusing existing UI over introducing new patterns.
-2. **Wait for confirmation.** Ask the user to confirm the proposed path, Server/Client choice, and library usage.
-3. **Create only after confirmation.** Create the component **only** after the user explicitly confirms the proposal (or agrees to an adjusted proposal).
+1. **Write a planning document first.** Before creating any new component file, function, state, or folder, you **must** add a planning document under the **`planning/`** folder that includes:
+   - **Folder and path:** Where the artifact will live (e.g. `components/common/`, `app/(dashboard)/dashboard/_components/`, `lib/utils/`, `stores/`), consistent with existing structure and naming.
+   - **Type and purpose:** What is being added (component / function / state store / folder) and its purpose.
+   - **For components:** **Server vs Client** (Server Component by default; Client only if it uses hooks, event handlers, or browser APIs); **reuse of existing libraries** (e.g. Shadcn/ui, existing `Button` from `components/ui/`). Prefer reusing existing UI over introducing new patterns.
+   - **For functions:** Target path (e.g. `lib/`, `lib/api/`), responsibility, and suggested signature or API.
+   - **For state:** Store name, path under `stores/`, and what state it holds.
+   - **For folders:** Purpose and intended contents.
+2. **Wait for confirmation.** Share the planning document with the user and ask for confirmation (or adjustments).
+3. **Create only after confirmation.** Implement the artifact **only** after the user explicitly confirms the planning document (or an updated version).
+
+**Also consider writing a planning document (and getting user confirmation) for:**
+
+- **New npm dependencies** — bundle size, licenses, and long-term maintenance.
+- **New environment variables or config files** — deployment and security impact.
+- **New API routes or Server Actions** — entry points, auth, and security.
+- **New app route segments (URLs)** — navigation, SEO, and existing links.
+- **Database or type schema changes** — migrations, data loss risk, and downtime.
+
+In each case, document impact and placement in `planning/` and get user confirmation before implementing.
 
 ## Workflow and Roadmap
 
