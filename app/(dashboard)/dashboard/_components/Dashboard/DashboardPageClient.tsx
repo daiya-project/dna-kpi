@@ -264,6 +264,7 @@ export function DashboardPageClient({
             sectionRefs={sectionRefs}
             getCategoryConfig={getSectionConfig}
             scrollContainerRef={scrollContainerRef}
+            region={region}
           />
 
           <div className="mt-6 text-center text-xs text-muted-foreground">

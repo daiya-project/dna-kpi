@@ -1,11 +1,16 @@
 "use client";
 
+import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Table } from "@/components/ui/table";
 import type { MonthlyTableSection } from "@/lib/logic/kpi-table-data";
 import { buildDisplayColumns } from "@/lib/logic/kpi-table-data";
 import { useKpiTableCollapse } from "@/hooks/useKpiTableCollapse";
 import { KpiTableHeader } from "./KpiTableHeader";
 import { KpiTableSection } from "./KpiTableSection";
+import { KpiUpsertModal } from "./KpiUpsertModal";
+import { kpiUpsert } from "./kpi-upsert";
+import type { KpiCellEditContext, KpiEditDraft } from "./types";
 
 /** Section styling for table header and rows (id, label, colors). */
 export interface TableSectionConfig {
@@ -25,7 +30,11 @@ interface KpiTableProps {
   getCategoryConfig: (id: string) => TableSectionConfig | undefined;
   /** Ref for the horizontal scroll container (for year navigator scroll-to). */
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
+  /** summary = read-only; kr | us = editable. */
+  region?: "summary" | "kr" | "us";
 }
+
+const EDITABLE_METRICS = ["Target", "Daily Target", "Achievement", "Daily Achievement"] as const;
 
 export function KpiTable({
   months: monthsProp,
@@ -34,10 +43,18 @@ export function KpiTable({
   sectionRefs,
   getCategoryConfig,
   scrollContainerRef,
+  region = "summary",
 }: KpiTableProps) {
+  const router = useRouter();
   const months = Array.isArray(monthsProp) ? monthsProp : [];
   const sections = Array.isArray(sectionsProp) ? sectionsProp : [];
   const displayColumns = buildDisplayColumns(months);
+
+  const [editContext, setEditContext] = useState<KpiCellEditContext | null>(null);
+  const [editDraft, setEditDraft] = useState<KpiEditDraft | null>(null);
+  const [unmapMonthlyDaily, setUnmapMonthlyDaily] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editPending, setEditPending] = useState(false);
 
   const {
     collapsedMonths,
@@ -49,9 +66,74 @@ export function KpiTable({
   } = useKpiTableCollapse();
 
   const columnCount = 2 + displayColumns.length;
+  const isEditMode = editContext !== null;
+  const country = region === "kr" || region === "us" ? region : undefined;
+
+  const exitEditMode = useCallback(() => {
+    setEditContext(null);
+    setEditDraft(null);
+    setUnmapMonthlyDaily(false);
+    setEditError(null);
+  }, []);
+
+  const handleEnterEditMode = useCallback(
+    (ctx: KpiCellEditContext, initial: KpiEditDraft) => {
+      if (country == null) return;
+      setEditContext(ctx);
+      setEditDraft(initial);
+      setUnmapMonthlyDaily(false);
+      setEditError(null);
+    },
+    [country],
+  );
+
+  const noopDraftChange = useCallback((_draft: KpiEditDraft) => {}, []);
+
+  const handleSave = useCallback(
+    async (draft: KpiEditDraft) => {
+      if (editContext == null) return;
+      setEditPending(true);
+      setEditError(null);
+      const payload = {
+        id: editContext.id ?? undefined,
+        month: editContext.month,
+        category: editContext.category,
+        country: editContext.country,
+        ...(editContext.field === "target"
+          ? {
+              val_target_monthly: draft.monthly,
+              val_target_daily: draft.daily,
+            }
+          : {
+              val_actual_monthly: draft.monthly,
+              val_actual_daily: draft.daily,
+            }),
+      };
+      const result = await kpiUpsert(payload);
+      setEditPending(false);
+      if (result.ok) {
+        router.refresh();
+        exitEditMode();
+      } else {
+        setEditError(result.error);
+      }
+    },
+    [editContext, router, exitEditMode],
+  );
 
   return (
     <div className="relative mx-auto w-full max-w-7xl overflow-hidden rounded-xl border border-glass-border bg-glass shadow-xl shadow-glass-shadow backdrop-blur-xl">
+      <KpiUpsertModal
+        open={isEditMode}
+        editContext={editContext}
+        editDraft={editDraft}
+        unmapMonthlyDaily={unmapMonthlyDaily}
+        onUnmapChange={setUnmapMonthlyDaily}
+        onCancel={exitEditMode}
+        onSave={handleSave}
+        editError={editError}
+        editPending={editPending}
+      />
       <div
         ref={scrollContainerRef}
         className="overflow-x-auto"
@@ -67,6 +149,10 @@ export function KpiTable({
             const config = getCategoryConfig(categoryId);
             const isHighlighted = activeFilter === categoryId;
             const isDimmed = activeFilter !== null && !isHighlighted;
+            const isEditingThis =
+              isEditMode &&
+              editContext !== null &&
+              editContext.category === categoryId;
 
             return (
               <KpiTableSection
@@ -87,6 +173,13 @@ export function KpiTable({
                   sectionRefs.current[categoryId] = el;
                 }}
                 categoryId={categoryId}
+                region={region}
+                editContext={isEditingThis ? editContext : null}
+                editDraft={isEditingThis ? editDraft : null}
+                unmapMonthlyDaily={unmapMonthlyDaily}
+                onEnterEditMode={handleEnterEditMode}
+                onDraftChange={noopDraftChange}
+                editableMetrics={EDITABLE_METRICS}
               />
             );
           })}

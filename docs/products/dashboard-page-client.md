@@ -2,12 +2,13 @@
 
 ## Document info
 - **Created:** 2025-02-18 12:00:00
-- **Last updated:** 2025-02-18 12:00:00
+- **Last updated:** 2026-02-18 12:00:00
 
 ## Revision history
 | Date | Description |
 |------|-------------|
 | 2025-02-18 12:00:00 | Initial version. |
+| 2026-02-18 12:00:00 | Summary 리전 시 페이지에서 별도 컴포넌트 렌더 안내 추가. |
 
 ## Covered files
 이 문서가 다루는 파일. **아래 파일 중 하나를 수정하면 이 문서를 갱신한다** (Last updated, Revision history, 그리고 동작/상태가 바뀌었으면 본문).
@@ -21,7 +22,7 @@
 ## 1. Overview
 
 - **Path:** `@/app/(dashboard)/dashboard/_components/Dashboard/DashboardPageClient.tsx` (root). Header: `DashboardHeader.tsx`. Bookmark: `BookmarkTabs.tsx`.
-- **Purpose:** 대시보드 페이지에서 리전(Summary/KR/US) 전환, 연도 스크롤 네비게이터, 카테고리 필터·북마크 클릭으로 섹션 스크롤 및 하이라이트를 제공하고, URL과 스크롤 위치를 동기화한다.
+- **Purpose:** 대시보드 페이지에서 리전(Summary/KR/US) 전환, 연도 스크롤 네비게이터, 카테고리 필터·북마크 클릭으로 섹션 스크롤 및 하이라이트를 제공하고, URL과 스크롤 위치를 동기화한다. **참고:** `region === "summary"`일 때는 `page.tsx`가 이 클라이언트 대신 `DashboardSummaryComingSoon`을 렌더한다. (문서: `docs/products/dashboard-summary-coming-soon.md`.)
 
 ## 2. Key Props & State
 

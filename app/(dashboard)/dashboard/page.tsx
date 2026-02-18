@@ -1,9 +1,13 @@
 import { Suspense } from "react";
 import { PageSkeleton } from "@/components/common/PageSkeleton";
 import { DashboardPageClient } from "./_components/Dashboard/DashboardPageClient";
+import { DashboardSummaryComingSoon } from "./_components/Dashboard/DashboardSummaryComingSoon";
 import { categories } from "@/lib/config/categories";
 import { fetchMonthlyKpi } from "@/lib/api/kpi";
-import { buildMonthlyTableSections } from "@/lib/logic/kpi-table-data";
+import {
+  buildMonthlyTableSections,
+  buildMonthToRowIdMap,
+} from "@/lib/logic/kpi-table-data";
 import { buildSummaryYtdByCategory } from "@/lib/logic/kpi-card";
 
 interface PageProps {
@@ -18,7 +22,14 @@ function getYearsFromMonths(months: string[]): number[] {
 
 export default async function DashboardPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const region = params.region === "kr" || params.region === "us" ? params.region : undefined;
+  const isSummary =
+    params.region !== "kr" && params.region !== "us";
+
+  if (isSummary) {
+    return <DashboardSummaryComingSoon />;
+  }
+
+  const region = params.region as "kr" | "us";
   const currentYear = new Date().getFullYear();
 
   let months: string[] = [];
@@ -27,13 +38,13 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   let error: string | null = null;
 
   try {
-    // All-year view: no month filter — load all data from DB (oldest to newest)
-    const rows = await fetchMonthlyKpi({
-      region: region ?? "summary",
-    });
-    const built = buildMonthlyTableSections(rows); // no year → months from data, ascending
+    const rows = await fetchMonthlyKpi({ region });
+    const built = buildMonthlyTableSections(rows);
     months = built.months;
-    sections = built.sections;
+    sections = built.sections.map((sec) => ({
+      ...sec,
+      monthToRowId: buildMonthToRowIdMap(rows, sec.category, built.months),
+    }));
     summaryYtd = buildSummaryYtdByCategory(rows, currentYear);
   } catch (e) {
     error = e instanceof Error ? e.message : "Failed to load KPI data";
@@ -50,7 +61,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
         initialMonths={months}
         initialSections={sections}
         initialSummaryYtd={summaryYtd}
-        initialRegion={params.region ?? "summary"}
+        initialRegion={region}
         initialYears={initialYears}
         initialYear={initialYear}
         error={error}

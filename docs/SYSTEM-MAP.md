@@ -427,12 +427,12 @@ export async function fetchMonthlyKpi(
 
 ### 10.2 Props Drilling: 데이터가 셀까지 도달하는 경로
 
-#### 경로 추적 (bigint → number 변환 포함)
+#### 경로 추적 (int8 → number 변환 포함)
 
 ```
 1. Supabase DB (PostgreSQL)
    ↓ Table: dna_kpi.monthly_kpi
-   ↓ Columns: val_actual_monthly (numeric), val_target_monthly (numeric)
+   ↓ Columns: val_actual_monthly (int8), val_target_monthly (int8)
    ↓
 2. lib/api/kpi.ts → fetchMonthlyKpi()
    ↓ 반환: MonthlyKpiRow[] (TypeScript interface)
@@ -453,7 +453,7 @@ export async function fetchMonthlyKpi(
    │     const ym = toYearMonth(r.month); // YYYY-MM 정규화
    │     const agg = byMonth.get(ym) ?? emptyAgg();
    │     
-   │     // ✅ bigint → number 변환 (Number() 캐스팅)
+   │     // ✅ int8 → number 변환 (Number() 캐스팅)
    │     agg.actual += Number(r.val_actual_monthly ?? r.val_actual_daily ?? 0);
    │     agg.target += Number(r.val_target_monthly ?? r.val_target_daily ?? 0);
    │     byMonth.set(ym, agg);
@@ -495,7 +495,7 @@ export async function fetchMonthlyKpi(
 
 | 단계 | 위치 | 타입 | 변환 |
 |------|------|------|------|
-| **DB** | PostgreSQL `dna_kpi.monthly_kpi` | `numeric` (bigint) | - |
+| **DB** | PostgreSQL `dna_kpi.monthly_kpi` | `int8` | - |
 | **API** | `lib/api/kpi.ts` | `number \| null` | Supabase client 자동 변환 |
 | **로직** | `lib/logic/kpi-table-data.ts` | `number` | `Number()` 캐스팅 + null 병합 (`?? 0`) |
 | **Props** | `MonthlyMetricRow.values` | `number[]` | - |
@@ -503,7 +503,7 @@ export async function fetchMonthlyKpi(
 
 **주요 변환 지점:**
 - **Line 415-418** (`kpi-table-data.ts`): `Number(r.val_actual_monthly ?? r.val_actual_daily ?? 0)`
-  - DB의 bigint/numeric → JavaScript number
+  - DB의 int8 → JavaScript number
   - null/undefined → 0 (기본값)
   - 다중 폴백: monthly 우선, daily 대안, 0으로 안전 처리
 

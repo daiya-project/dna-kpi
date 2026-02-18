@@ -36,3 +36,28 @@ export function isBlank(value: string | null | undefined): boolean {
   if (value == null) return true;
   return String(value).trim().length === 0;
 }
+
+/**
+ * Format a number with thousand separator (e.g. 1234567 → "1,234,567").
+ * Use for display in inputs; integers only (no fractional part).
+ */
+export function formatWithThousandSeparator(
+  value: number,
+  options?: { locale?: string },
+): string {
+  const n = Number(value);
+  if (Number.isNaN(n)) return "";
+  const locale = options?.locale ?? "en-US";
+  return n.toLocaleString(locale, { maximumFractionDigits: 0 });
+}
+
+/**
+ * Remove thousand separators (e.g. "1,234,567" → "1234567").
+ * Use before parsing to number or before sending numeric strings to DB/API.
+ */
+export function stripThousandSeparator(
+  value: string | null | undefined,
+): string {
+  if (value == null) return "";
+  return String(value).replace(/,/g, "").trim();
+}

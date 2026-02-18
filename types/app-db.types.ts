@@ -30,6 +30,21 @@ export type MonthlyKpiInsert = Omit<
   updated_at?: string | null;
 };
 
+/**
+ * Payload for monthly_kpi upsert (cell edit).
+ * id 있으면 update, 없으면 (month, category, country)로 insert.
+ */
+export interface MonthlyKpiUpdatePayload {
+  id?: number | null;
+  month: string;
+  category: string;
+  country: string;
+  val_target_monthly?: number | null;
+  val_target_daily?: number | null;
+  val_actual_monthly?: number | null;
+  val_actual_daily?: number | null;
+}
+
 /** Maps dashboard region to API country filter. "summary" = no filter. */
 export function regionToCountry(
   region: "summary" | "kr" | "us",

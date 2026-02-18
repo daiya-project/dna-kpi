@@ -13,6 +13,7 @@ import { getQuarterFromMonth } from "@/lib/date-utils";
 import { formatNumber, formatPercent } from "@/lib/number-utils";
 import type { TableSectionConfig } from "./KpiTable";
 import { QuarterProgressBar } from "./QuarterProgressBar";
+import type { KpiCellEditContext, KpiEditDraft } from "./types";
 
 interface KpiTableSectionProps {
   section: MonthlyTableSection;
@@ -29,6 +30,14 @@ interface KpiTableSectionProps {
   onToggleQuarterlyProgress: (categoryId: string) => void;
   sectionRef: (el: HTMLTableSectionElement | null) => void;
   categoryId: string;
+  /** summary = read-only; kr | us = editable. */
+  region?: "summary" | "kr" | "us";
+  editContext: KpiCellEditContext | null;
+  editDraft: KpiEditDraft | null;
+  unmapMonthlyDaily: boolean;
+  onEnterEditMode: (ctx: KpiCellEditContext, initial: KpiEditDraft) => void;
+  onDraftChange: (draft: KpiEditDraft) => void;
+  editableMetrics: readonly string[];
 }
 
 const LABEL_COLUMN_WIDTH = "2rem";
@@ -36,6 +45,35 @@ const SECTION_LABEL_QUARTERLY = "QUARTERLY";
 const SECTION_LABEL_MONTHLY = "MONTHLY";
 const SUMMARY_COL_CELL_CLASS =
   "border-r border-glass-border px-3 py-1.5 text-right font-mono text-xs tabular-nums font-semibold bg-slate-100/50 dark:bg-slate-800/50";
+const DATA_CELL_CLASS =
+  "border-r border-glass-border px-3 py-1.5 text-right font-mono text-xs tabular-nums";
+
+function getFieldFromMetric(metric: string): "target" | "actual" | null {
+  if (metric === "Target" || metric === "Daily Target") return "target";
+  if (metric === "Achievement" || metric === "Daily Achievement") return "actual";
+  return null;
+}
+
+function getInitialDraft(
+  section: MonthlyTableSection,
+  months: string[],
+  ym: string,
+  field: "target" | "actual",
+): KpiEditDraft {
+  const idx = months.indexOf(ym);
+  const targetRow = section.rows.find((r) => r.metric === "Target");
+  const dailyTargetRow = section.rows.find((r) => r.metric === "Daily Target");
+  const actualRow = section.rows.find((r) => r.metric === "Achievement");
+  const dailyActualRow = section.rows.find((r) => r.metric === "Daily Achievement");
+  if (field === "target") {
+    const monthly = (targetRow?.values ?? [])[idx] ?? 0;
+    const daily = (dailyTargetRow?.values ?? [])[idx] ?? 0;
+    return { monthly: Number(monthly) || 0, daily: Number(daily) || 0 };
+  }
+  const monthly = (actualRow?.values ?? [])[idx] ?? 0;
+  const daily = (dailyActualRow?.values ?? [])[idx] ?? 0;
+  return { monthly: Number(monthly) || 0, daily: Number(daily) || 0 };
+}
 
 function formatCell(row: MonthlyMetricRow, value: number): string {
   const n = Number(value);
@@ -96,10 +134,20 @@ export function KpiTableSection({
   onToggleQuarterlyProgress,
   sectionRef,
   categoryId,
+  region = "summary",
+  editContext,
+  editDraft,
+  unmapMonthlyDaily,
+  onEnterEditMode,
+  onDraftChange,
+  editableMetrics = [],
 }: KpiTableSectionProps) {
   const monthlyRowCount = (section?.rows ?? []).length;
   const monthlyCollapsed = collapsedMonths.has(`${categoryId}-monthly`);
   const isQuarterlyProgressView = showQuarterlyProgress.has(categoryId);
+  const country = region === "kr" || region === "us" ? region : undefined;
+  const canEdit = country !== undefined;
+  const editableSet = new Set(editableMetrics);
 
   // Group display columns by quarters for rendering logic
   const columnGroups: Array<{
@@ -284,7 +332,7 @@ export function KpiTableSection({
                 className={cn(
                   group.column.type === "summary"
                     ? SUMMARY_COL_CELL_CLASS
-                    : "border-r border-glass-border px-3 py-1.5 text-right font-mono text-xs tabular-nums",
+                    : DATA_CELL_CLASS,
                 )}
               >
                 —
@@ -347,11 +395,12 @@ export function KpiTableSection({
                   return null;
                 }
                 const cells = group.monthColumns.map((col) => {
-                  const value = (row.values ?? [])[months.indexOf(col.ym)];
+                  const ym = col.type === "month" ? col.ym : "";
+                  const value = (row.values ?? [])[months.indexOf(ym)];
                   return (
                     <TableCell
                       key={col.key}
-                      className="border-r border-glass-border px-3 py-1.5 text-right font-mono text-xs tabular-nums"
+                      className={DATA_CELL_CLASS}
                     >
                       {value !== undefined && !Number.isNaN(Number(value))
                         ? formatCell(row, Number(value))
@@ -380,7 +429,7 @@ export function KpiTableSection({
                   className={cn(
                     group.column.type === "summary"
                       ? SUMMARY_COL_CELL_CLASS
-                      : "border-r border-glass-border px-3 py-1.5 text-right font-mono text-xs tabular-nums",
+                      : DATA_CELL_CLASS,
                   )}
                 >
                   —
@@ -455,13 +504,37 @@ export function KpiTableSection({
                 return null;
               }
 
-              // Render individual month columns
+              // Render individual month columns (MONTHLY section). monthColumns are month-type only.
               const cells = group.monthColumns.map((col) => {
-                const value = (row.values ?? [])[months.indexOf(col.ym)];
+                const ym = col.type === "month" ? col.ym : "";
+                const value = (row.values ?? [])[months.indexOf(ym)];
+                const field = getFieldFromMetric(row.metric);
+                const isEditable =
+                  canEdit &&
+                  field !== null &&
+                  editableSet.has(row.metric);
+
+                const handleDoubleClick = () => {
+                  if (!isEditable || !country || !field) return;
+                  const id = section.monthToRowId?.[ym] ?? null;
+                  onEnterEditMode(
+                    {
+                      id,
+                      month: ym,
+                      category: categoryId,
+                      country,
+                      field,
+                    },
+                    getInitialDraft(section, months, ym, field),
+                  );
+                };
+
                 return (
                   <TableCell
                     key={col.key}
-                    className="border-r border-glass-border px-3 py-1.5 text-right font-mono text-xs tabular-nums"
+                    className={DATA_CELL_CLASS}
+                    onDoubleClick={isEditable ? handleDoubleClick : undefined}
+                    style={isEditable ? { cursor: "cell" } : undefined}
                   >
                     {value !== undefined && !Number.isNaN(Number(value))
                       ? formatCell(row, Number(value))
@@ -486,9 +559,10 @@ export function KpiTableSection({
             }
 
             // Other column (Year Total, etc.)
+            const otherCol = group.column;
             const value =
-              group.column.type === "month"
-                ? (row.values ?? [])[months.indexOf(group.column.ym)]
+              otherCol.type === "month"
+                ? (row.values ?? [])[months.indexOf(otherCol.ym)]
                 : undefined;
             return (
               <TableCell
@@ -496,7 +570,7 @@ export function KpiTableSection({
                 className={cn(
                   group.column.type === "summary"
                     ? SUMMARY_COL_CELL_CLASS
-                    : "border-r border-glass-border px-3 py-1.5 text-right font-mono text-xs tabular-nums",
+                    : DATA_CELL_CLASS,
                 )}
               >
                 {value !== undefined && !Number.isNaN(Number(value))

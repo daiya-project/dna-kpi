@@ -35,6 +35,9 @@ globs: "**/*.{ts,tsx}"
 | | `@/components/ui/toggle-group` | ToggleGroup, ToggleGroupItem. |
 | | `@/components/ui/progress` | 프로그레스 바. |
 | | `@/components/ui/tabs` | 탭. |
+| | `@/components/ui/dialog` | 다이얼로그(모달). |
+| | `@/components/ui/input` | 텍스트/숫자 입력. |
+| | `@/components/ui/checkbox` | 체크박스. |
 
 새 Shadcn 컴포넌트는 `npx shadcn@latest add <component>`로 추가하고, 외부에서 복사해 붙이지 않는다.
 
@@ -45,7 +48,7 @@ globs: "**/*.{ts,tsx}"
 | **`@/lib/utils`** | `cn` — className 병합 (모든 UI 컴포넌트에서 사용). |
 | **`@/lib/number-utils`** | 숫자·퍼센트 표시: `formatNumber`, `formatPercent`, `formatNumberOrFallback`, `percentRate`, `parseNumber`. KPI 값, 비율, 숫자 셀 렌더 시 사용. |
 | **`@/lib/date-utils`** | 날짜·분기: `getToday`, `getCurrentMonth`, `getYearFromMonth`, `getYearsFromMonthStrings`, `getMonthsForYear`, `toYearMonth` 등. 날짜 처리 및 분기 로직 (KPI 테이블 컬럼 등)에 사용. |
-| **`@/lib/string-utils`** | 문자열 유틸 (있는 경우). |
+| **`@/lib/string-utils`** | 문자열 유틸: `trim`, `truncate`, `capitalizeWords`, `isBlank`. **입력용 숫자 표시/파싱:** `formatWithThousandSeparator(value)` (예: 1234567 → "1,234,567"), `stripThousandSeparator(value)` (파싱·DB/API 전송 전 콤마 제거). 모달 등에서 콤마 구분 숫자 표시 시 사용. |
 | **`@/lib/config/categories`** | 카테고리 설정 (id, label, color) — 바, 카드, 필터 등. |
 | **`@/lib/config/dashboard-sections`** | 대시보드 섹션/탭 설정 (id, 제목, 색상). |
 | **`@/lib/logic/kpi-table-data`** | 테이블 섹션·컬럼·월별/분기 데이터 빌드. |
@@ -77,6 +80,12 @@ import { cn } from "@/lib/utils";
 ```
 
 ```ts
+// ✅ 좋음 — 입력 표시/DB 전 콤마 제거
+import { formatWithThousandSeparator, stripThousandSeparator } from "@/lib/string-utils";
+// 표시: formatWithThousandSeparator(num). 파싱: parseNumber(stripThousandSeparator(raw)).
+```
+
+```ts
 // ❌ 나쁨 — 인라인 숫자 포맷
 const s = Number.isNaN(n) ? "—" : n.toLocaleString(); // @/lib/number-utils 사용할 것
 ```
@@ -88,3 +97,4 @@ const s = Number.isNaN(n) ? "—" : n.toLocaleString(); // @/lib/number-utils �
 - [ ] 날짜/분기 로직에 `@/lib/date-utils` 사용했는가?
 - [ ] UI는 가능한 경우 `@/components/ui/*`, `@/components/common/*` 사용했는가?
 - [ ] className 병합에 `@/lib/utils`의 `cn` 사용했는가?
+- [ ] 천 단위 구분자 표시/제거가 필요할 때 `@/lib/string-utils`의 `formatWithThousandSeparator`, `stripThousandSeparator` 사용했는가?

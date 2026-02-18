@@ -35,6 +35,9 @@ All generated code must use only these technologies. See `00-project-main.mdc` f
 | | `@/components/ui/toggle-group` | ToggleGroup, ToggleGroupItem. |
 | | `@/components/ui/progress` | Progress bar. |
 | | `@/components/ui/tabs` | Tabs. |
+| | `@/components/ui/dialog` | Dialog (modals). |
+| | `@/components/ui/input` | Text/numeric input. |
+| | `@/components/ui/checkbox` | Checkbox. |
 
 Add new Shadcn components via `npx shadcn@latest add <component>`; do not copy-paste from external sources.
 
@@ -45,7 +48,7 @@ Add new Shadcn components via `npx shadcn@latest add <component>`; do not copy-p
 | **`@/lib/utils`** | `cn` — className merging (use in all UI components). |
 | **`@/lib/number-utils`** | Number/percentage display: `formatNumber`, `formatPercent`, `formatNumberOrFallback`, `percentRate`, `parseNumber`. Use when rendering KPI values, rates, or any numeric cell. |
 | **`@/lib/date-utils`** | Dates and quarters: `getToday`, `getCurrentMonth`, `getYearFromMonth`, `getYearsFromMonthStrings`, `getMonthsForYear`, `toYearMonth`, etc. Use for date handling and quarter logic (e.g. KPI table columns). |
-| **`@/lib/string-utils`** | String helpers (if present). |
+| **`@/lib/string-utils`** | String helpers: `trim`, `truncate`, `capitalizeWords`, `isBlank`. **Number display/parse for inputs:** `formatWithThousandSeparator(value)` (e.g. 1234567 → "1,234,567"), `stripThousandSeparator(value)` (remove commas before parsing or sending to DB/API). Use for modal inputs that show comma-separated numbers. |
 | **`@/lib/config/categories`** | Category config (ids, labels, colors) for bars, cards, filters. |
 | **`@/lib/config/dashboard-sections`** | Dashboard section/tab config (section ids, titles, colors). |
 | **`@/lib/logic/kpi-table-data`** | Building table sections, display columns, monthly/quarterly data. |
@@ -77,6 +80,12 @@ import { cn } from "@/lib/utils";
 ```
 
 ```ts
+// ✅ GOOD — thousand separator for input display / strip before DB
+import { formatWithThousandSeparator, stripThousandSeparator } from "@/lib/string-utils";
+// Display: formatWithThousandSeparator(num). Parse: parseNumber(stripThousandSeparator(raw)).
+```
+
+```ts
 // ❌ BAD — inline number formatting
 const s = Number.isNaN(n) ? "—" : n.toLocaleString(); // use @/lib/number-utils instead
 ```
@@ -88,3 +97,4 @@ const s = Number.isNaN(n) ? "—" : n.toLocaleString(); // use @/lib/number-util
 - [ ] Date/quarter logic uses `@/lib/date-utils`?
 - [ ] UI uses `@/components/ui/*` or `@/components/common/*` where applicable?
 - [ ] className merging uses `cn` from `@/lib/utils`?
+- [ ] Input display/parse with thousand separators uses `@/lib/string-utils` (`formatWithThousandSeparator`, `stripThousandSeparator`)?

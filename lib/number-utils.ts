@@ -65,6 +65,35 @@ export function formatNumberOrFallback(
 }
 
 /**
+ * Monthly total → daily value (rounded integer).
+ * Use with getDaysInMonth(month) from date-utils for KPI table edit.
+ * Returns 0 when daysInMonth ≤ 0 or inputs are invalid.
+ */
+export function monthlyToDaily(
+  monthly: number,
+  daysInMonth: number,
+): number {
+  const m = Number(monthly);
+  const d = Number(daysInMonth);
+  if (Number.isNaN(m) || Number.isNaN(d) || d <= 0) return 0;
+  return Math.round(m / d);
+}
+
+/**
+ * Daily value × days in month → monthly total (integer).
+ * Use with getDaysInMonth(month) from date-utils for KPI table edit.
+ */
+export function dailyToMonthly(
+  daily: number,
+  daysInMonth: number,
+): number {
+  const day = Number(daily);
+  const d = Number(daysInMonth);
+  if (Number.isNaN(day) || Number.isNaN(d)) return 0;
+  return Math.round(day * d);
+}
+
+/**
  * 정수를 N개로 나눌때 나머지 배분법(Distribute Remainder)을 사용하여 소수점 없이 나누어지도록 배분합니다.
  * 남는 나머지(짜투리)는 앞쪽 요소들에 1씩 분배합니다.
  * @param total 나누고 싶은 총액 (예: 10)

@@ -11,6 +11,31 @@ import {
   isLastMonthOfQuarter,
   toYearMonth,
 } from "@/lib/date-utils";
+
+/**
+ * Build month → row id map for one section (category) and country (kr/us).
+ * Used when region is kr or us so each cell can resolve id for update or null for insert.
+ * @param rows Raw monthly_kpi rows (already filtered by country at fetch)
+ * @param category Section category (e.g. "ads", "media")
+ * @param months All displayed months (YYYY-MM)
+ */
+export function buildMonthToRowIdMap(
+  rows: MonthlyKpiRow[],
+  category: string,
+  months: string[],
+): Record<string, number | null> {
+  const byMonth = new Map<string, number>();
+  for (const r of rows) {
+    if (r.category !== category) continue;
+    const ym = toYearMonth(r.month);
+    byMonth.set(ym, r.id);
+  }
+  const out: Record<string, number | null> = {};
+  for (const ym of months) {
+    out[ym] = byMonth.get(ym) ?? null;
+  }
+  return out;
+}
 import { percentRate } from "@/lib/number-utils";
 
 // --- Monthly column table (YYYY-MM, oldest to newest, with Q1/Q2/Q3/Q4/Year per year) ---
@@ -41,6 +66,8 @@ export interface MonthlyTableSection {
   /** Section id (e.g. cm, fr, ads, media, mfr, apc, scr). */
   category: string;
   rows: MonthlyMetricRow[];
+  /** 월(YYYY-MM) → DB row id. kr/us 리전일 때 셀 편집용; 없으면 null(insert). */
+  monthToRowId?: Record<string, number | null>;
 }
 
 /** Display column: either a month (YYYY-MM) or a summary (Q1/Q2/Q3/Q4/Year). */

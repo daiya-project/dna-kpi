@@ -27,11 +27,38 @@ export function toYearMonth(month: string): string {
 }
 
 /**
+ * Convert month string (YYYY-MM or YYYY-MM-DD) to first day of month (YYYY-MM-01).
+ * Use when the DB expects a date type; invalid input returns empty string.
+ */
+export function toFirstDayOfMonth(month: string): string {
+  const ym = toYearMonth(month);
+  if (ym.length !== 7) return "";
+  const year = parseInt(ym.slice(0, 4), 10);
+  const mm = parseInt(ym.slice(5, 7), 10);
+  if (Number.isNaN(year) || Number.isNaN(mm) || mm < 1 || mm > 12) return "";
+  return `${ym}-01`;
+}
+
+/**
  * Extract year from month string (YYYY-MM or YYYY-MM-DD).
  */
 export function getYearFromMonth(month: string): number {
   const ym = toYearMonth(month);
   return ym.length >= 4 ? parseInt(ym.slice(0, 4), 10) : NaN;
+}
+
+/**
+ * Number of days in the given month (YYYY-MM or YYYY-MM-DD).
+ * Uses calendar month; e.g. 2024-02 → 29 (leap year), 2025-02 → 28.
+ * Returns 0 if month string is invalid.
+ */
+export function getDaysInMonth(month: string): number {
+  const ym = toYearMonth(month);
+  if (ym.length < 7) return 0;
+  const year = parseInt(ym.slice(0, 4), 10);
+  const mm = parseInt(ym.slice(5, 7), 10);
+  if (Number.isNaN(year) || Number.isNaN(mm) || mm < 1 || mm > 12) return 0;
+  return new Date(year, mm, 0).getDate();
 }
 
 /**
