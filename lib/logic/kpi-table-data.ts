@@ -100,6 +100,9 @@ export function buildDisplayColumns(months: string[]): DisplayColumn[] {
   return out;
 }
 
+/** Default metric IDs used for building rows (first 6). Extra IDs (daily_qq, etc.) reserved for future. */
+const CORE_METRIC_IDS = METRIC_IDS.slice(0, 6);
+
 /** Same metric row structure as buildMonthlyTableSections, but values are zeros. For placeholder sections. */
 export function createEmptySection(
   sectionId: string,
@@ -108,10 +111,10 @@ export function createEmptySection(
   const zeros = months.map(() => 0);
   return {
     category: sectionId,
-    rows: METRIC_IDS.map((id) => ({
+    rows: CORE_METRIC_IDS.map((id) => ({
       metric: id,
       values: [...zeros],
-      isRate: id === "achievement_rate" || id === "daily_achievement_rate",
+      isRate: id === "actual_rate" || id === "daily_actual_rate",
     })),
   };
 }
@@ -168,12 +171,12 @@ export function buildMonthlyTableSections(
     sections.push({
       category: cat,
       rows: [
-        { metric: METRIC_IDS[0]!, values: targetValues },
-        { metric: METRIC_IDS[1]!, values: actualValues },
-        { metric: METRIC_IDS[2]!, values: rateValues, isRate: true },
-        { metric: METRIC_IDS[3]!, values: dailyTargetValues },
-        { metric: METRIC_IDS[4]!, values: dailyActualValues },
-        { metric: METRIC_IDS[5]!, values: dailyRateValues, isRate: true },
+        { metric: CORE_METRIC_IDS[0]!, values: targetValues },
+        { metric: CORE_METRIC_IDS[1]!, values: actualValues },
+        { metric: CORE_METRIC_IDS[2]!, values: rateValues, isRate: true },
+        { metric: CORE_METRIC_IDS[3]!, values: dailyTargetValues },
+        { metric: CORE_METRIC_IDS[4]!, values: dailyActualValues },
+        { metric: CORE_METRIC_IDS[5]!, values: dailyRateValues, isRate: true },
       ],
     });
   }

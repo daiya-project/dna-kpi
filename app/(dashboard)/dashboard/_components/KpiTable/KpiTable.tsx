@@ -39,12 +39,12 @@ interface KpiTableProps {
   region?: "summary" | "kr" | "us";
 }
 
-/** Metric IDs that allow cell edit (target/daily_target, achievement/daily_achievement). */
+/** Metric IDs that allow cell edit (target/daily_target, actual/daily_actual). Display label remains "Achievement". */
 const EDITABLE_METRIC_IDS = [
   "target",
   "daily_target",
-  "achievement",
-  "daily_achievement",
+  "actual",
+  "daily_actual",
 ] as const;
 
 export function KpiTable({

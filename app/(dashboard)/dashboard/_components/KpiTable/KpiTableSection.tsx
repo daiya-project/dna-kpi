@@ -83,7 +83,7 @@ interface KpiTableSectionProps {
 
 function getFieldFromMetric(metric: string): "target" | "actual" | null {
   if (metric === "target" || metric === "daily_target") return "target";
-  if (metric === "achievement" || metric === "daily_achievement") return "actual";
+  if (metric === "actual" || metric === "daily_actual") return "actual";
   return null;
 }
 
@@ -96,8 +96,8 @@ function getInitialDraft(
   const idx = months.indexOf(ym);
   const targetRow = section.rows.find((r) => r.metric === "target");
   const dailyTargetRow = section.rows.find((r) => r.metric === "daily_target");
-  const actualRow = section.rows.find((r) => r.metric === "achievement");
-  const dailyActualRow = section.rows.find((r) => r.metric === "daily_achievement");
+  const actualRow = section.rows.find((r) => r.metric === "actual");
+  const dailyActualRow = section.rows.find((r) => r.metric === "daily_actual");
   if (field === "target") {
     const monthly = (targetRow?.values ?? [])[idx] ?? 0;
     const daily = (dailyTargetRow?.values ?? [])[idx] ?? 0;
@@ -124,7 +124,7 @@ function calculateQuarterAggregates(
   quarterId: string,
 ): { target: number; actual: number } | null {
   const targetRow = section.rows.find((r) => r.metric === "target");
-  const actualRow = section.rows.find((r) => r.metric === "achievement");
+  const actualRow = section.rows.find((r) => r.metric === "actual");
 
   if (!targetRow || !actualRow) return null;
 

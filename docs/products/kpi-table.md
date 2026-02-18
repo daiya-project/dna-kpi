@@ -2,7 +2,7 @@
 
 ## Document info
 - **Created:** 2025-02-18 00:00:00
-- **Last updated:** 2026-02-18 20:00:00
+- **Last updated:** 2026-02-18 22:00:00
 
 ## Revision history
 | Date | Description |
@@ -11,6 +11,8 @@
 | 2026-02-18 12:00:00 | 셀 인라인 편집 모드 추가: KpiUpsertController, kpi-upsert, types. Covered files 및 State→Action 보강. |
 | 2026-02-18 18:00:00 | 편집 UI를 모달(KpiUpsertModal)로 전환. 로컬 draft로 입력 지연 개선, 저장 시 onSave(draft). 자리 구분자 표시/제거(@/lib/string-utils). Covered files에서 KpiUpsertController 제거·KpiUpsertModal 추가. |
 | 2026-02-18 20:00:00 | 섹션·블록별 표시 설정: SectionTableDisplayConfig, kpi-table-sections.ts. QUARTERLY/MONTHLY 블록·행 필터(showQuarterly/showMonthly, visibleMetricsQuarterly/Monthly). 메트릭 ID(snake_case) 공통화. |
+| 2026-02-18 21:00:00 | 테이블 > 섹션 > 블록 구조, 메트릭 ID 표·사용처 등 세부 내용 추가. |
+| 2026-02-18 22:00:00 | 메트릭 ID를 DB 칼럼과 통일(achievement→actual). 표시 라벨은 Achievement 유지. daily_qq, daily_target_mm, daily_achievement_mm 3개 예약 추가. |
 
 ## Covered files
 이 문서가 다루는 파일. **아래 파일 중 하나를 수정하면 이 문서를 갱신한다** (Last updated, Revision history, 그리고 동작/상태가 바뀌었으면 본문).
@@ -33,6 +35,44 @@
 
 - **Path:** `@/app/(dashboard)/dashboard/_components/KpiTable/KpiTable.tsx` (root). Collapse state: `@/hooks/useKpiTableCollapse.ts`. Section body: `KpiTableSection.tsx`, header: `KpiTableHeader.tsx`. Edit modal: `KpiUpsertModal.tsx`, save: `kpi-upsert.ts`.
 - **Purpose:** 사용자에게 카테고리별 월간 KPI(목표/실적 등)를 테이블로 보여 주고, QUARTERLY 1행 요약 뷰·MONTHLY 접기·분기(Q1/Q2 등) 컬럼 접기를 토글할 수 있게 한다. `region`이 `kr` 또는 `us`일 때는 Target/Achievement(및 Daily) **월 셀 더블클릭** 시 **편집 모달**이 열리고, 모달에서 Monthly/Daily 입력(자리 구분자 표시)·저장할 수 있다.
+
+### 1.1 테이블 > 섹션 > 블록 구조
+
+계층은 **테이블(1개) → 섹션(N개) → 블록(섹션당 QUARTERLY / MONTHLY)** 이다.
+
+| 계층 | 의미 | 구현/예시 |
+|------|------|-----------|
+| **테이블(Table)** | KPI 테이블 전체. 월 컬럼(YYYY-MM) + 분기/연도 요약 컬럼(Q1 Total, Q2 Total, …, Year Total). | `KpiTable.tsx` 하나의 `<Table>`. `KpiTableHeader` + 여러 `KpiTableSection`(각각 `<tbody>`). |
+| **섹션(Section)** | 카테고리 하나. 하나의 `<tbody>`에 해당. 헤더 행(카테고리 라벨·색) + QUARTERLY 블록 + MONTHLY 블록 + spacer. | Section ID = 카테고리 ID (`cm`, `fr`, `ads`, `media`, `mfr`, `apc`, `scr` 등). `MonthlyTableSection.category`, `getCategoryConfig(id)`와 동일 키. |
+| **블록(Block)** | QUARTERLY 또는 MONTHLY. 섹션 내에서 “분기 요약” vs “월별 상세”를 구분하는 행 그룹. | **QUARTERLY:** 1행(ProgressBar 뷰) 또는 N행(메트릭별 월값). **MONTHLY:** N행(메트릭별 월값) 또는 접힌 1행. |
+
+- **블록 종류:** `TableBlockType = "quarterly" | "monthly"` (`@/lib/config/kpi-table-sections`).
+- **섹션별 블록 표시:** `SectionTableDisplayConfig`의 `showQuarterly` / `showMonthly`로 해당 섹션에서 블록 전체를 그릴지 여부 제어. 같은 섹션 안에서 QUARTERLY만 없애거나(예: FR), MONTHLY만 없애는 것 가능.
+- **블록별 행(메트릭):** `visibleMetricsQuarterly` / `visibleMetricsMonthly`로 “이 블록에서 보여줄 메트릭 행”만 지정. 미지정 시 6개 전체. 빈 배열이면 해당 블록은 행이 없으므로 블록 자체를 렌더하지 않음.
+
+### 1.2 메트릭 ID
+
+모든 행(메트릭)은 **한 세트의 메트릭 ID(snake_case)** 로 식별한다. QUARTERLY/MONTHLY 블록 구분 없이 동일 ID 사용. 블록별 노출만 `visibleMetricsQuarterly` / `visibleMetricsMonthly`로 제어. **DB 칼럼과의 통일:** ID는 `achievement` 대신 `actual`(·`actual_rate`, `daily_actual`, `daily_actual_rate`)을 사용하며, **프론트 표시 라벨**은 기존처럼 "Achievement", "Achievement Rate" 등으로 유지한다.
+
+**정의 위치:** `@/lib/config/kpi-table-sections.ts` — `METRIC_IDS`, `MetricId`, `METRIC_DISPLAY_LABELS`. 기본 사용 행은 앞 6개; `daily_qq`, `daily_target_mm`, `daily_achievement_mm`은 예약(추후 사용).
+
+| 순서 | 메트릭 ID | 표시 라벨 | 비율(isRate) | 편집 가능(region kr/us) | 비고 |
+|------|-----------|-----------|--------------|-------------------------|------|
+| 1 | `target` | Target | — | 예 | |
+| 2 | `actual` | Achievement | — | 예 | DB 칼럼과 통일(actual) |
+| 3 | `actual_rate` | Achievement Rate | 예 | — | |
+| 4 | `daily_target` | Daily Target | — | 예 | |
+| 5 | `daily_actual` | Daily Achievement | — | 예 | |
+| 6 | `daily_actual_rate` | Daily Achievement Rate | 예 | — | |
+| 7 | `daily_qq` | Daily QQ | — | — | 예약(추후 사용) |
+| 8 | `daily_target_mm` | Daily Target (MM) | — | — | 예약(추후 사용) |
+| 9 | `daily_achievement_mm` | Daily Achievement (MM) | — | — | 예약(추후 사용) |
+
+- **블록 내 행 순서:** 위 표 순서 고정. `filterAndOrderMetricRows`가 `METRIC_IDS` 순서로 필터/정렬.
+- **데이터·설정에서의 사용:** `MonthlyMetricRow.metric`에는 위 ID만 저장. `buildMonthlyTableSections` / `createEmptySection`은 `METRIC_IDS` 순서로 행 구성. `visibleMetricsQuarterly` / `visibleMetricsMonthly` 배열 값도 이 ID 문자열.
+- **화면 표시:** 행 헤더(메트릭 이름)는 `METRIC_DISPLAY_LABELS[metric]`으로 표시. `KpiTableSection`의 `getRowLabel(row.metric)`에서 사용.
+- **편집:** `KpiTable`의 `EDITABLE_METRIC_IDS` = `target`, `daily_target`, `achievement`, `daily_achievement`. 이 ID에 해당하는 MONTHLY 월 셀만 더블클릭 시 편집 모달 오픈.
+- **집계(ProgressBar):** QUARTERLY 1행 뷰에서 분기별 Target/Achievement 합산은 `row.metric === "target"`, `row.metric === "actual"`인 행으로 `calculateQuarterAggregates` 계산.
 
 ## 2. Key Props & State
 
@@ -105,11 +145,19 @@
 
 ### 섹션·블록별 표시 설정
 
-- **설정 소스:** `@/lib/config/kpi-table-sections.ts`. 카테고리(스타일)는 `categories.ts` / `dashboard-sections.ts`, **테이블에서 어떻게 보일지**(블록·행 표시)만 여기서 정의.
-- **타입:** `SectionTableDisplayConfig` — `sectionId`, `showQuarterly?`, `showMonthly?`, `visibleMetricsQuarterly?`, `visibleMetricsMonthly?`. 미지정 시 기본값: 블록 둘 다 표시, 행 6개 전체.
-- **메트릭 ID:** `METRIC_IDS` 순서는 `target` → `achievement` → `achievement_rate` → `daily_target` → `daily_achievement` → `daily_achievement_rate`. `MonthlyMetricRow.metric`과 `visibleMetrics*`는 이 ID(snake_case) 사용. 표시 라벨은 `METRIC_DISPLAY_LABELS`.
-- **흐름:** `KpiTable`에서 `getSectionTableDisplayConfig(categoryId)`로 설정 조회 → `showQuarterlyBlock`/`showMonthlyBlock` 및 `filterAndOrderMetricRows(section.rows, visibleMetricsQuarterly/Monthly)`로 `quarterlyRows`/`monthlyRows` 계산 → `KpiTableSection`에 전달. Section은 `showQuarterlyBlock === false`이면 QUARTERLY 블록 전체 미렌더, `showMonthlyBlock === false`이면 MONTHLY 블록 전체 미렌더. 행이 0개인 블록도 미렌더.
-- **예:** CM은 쿼터리에서 요약 3행만, 먼슬리에서 6행 전체. FR은 `showQuarterly: false`로 쿼터리 블록 없음. 그 외 섹션은 설정 없음 → 기본값(블록·행 전체).
+- **설정 소스:** `@/lib/config/kpi-table-sections.ts`. 카테고리(스타일)는 `categories.ts` / `dashboard-sections.ts`, **테이블에서 어떻게 보일지**(블록·행 표시)만 여기서 정의. 구조·메트릭 ID는 위 **1.1 테이블 > 섹션 > 블록 구조**, **1.2 메트릭 ID** 참고.
+- **타입:** `SectionTableDisplayConfig` — `sectionId`, `showQuarterly?`, `showMonthly?`, `visibleMetricsQuarterly?`, `visibleMetricsMonthly?`. `visibleMetrics*` 값은 **메트릭 ID**(1.2 표) 문자열 배열. 미지정 시 기본값: 블록 둘 다 표시, 행 6개 전체.
+- **기본값 요약:**
+
+  | 필드 | 기본값 | 비고 |
+  |------|--------|------|
+  | `showQuarterly` | `true` | 미지정 시 QUARTERLY 블록 표시 |
+  | `showMonthly` | `true` | 미지정 시 MONTHLY 블록 표시 |
+  | `visibleMetricsQuarterly` | (전체 6개) | 미지정 시 쿼터리 블록에서 6개 메트릭 전체. `[]`이면 해당 블록 미렌더. |
+  | `visibleMetricsMonthly` | (전체 6개) | 미지정 시 먼슬리 블록에서 6개 메트릭 전체. `[]`이면 해당 블록 미렌더. |
+
+- **데이터 흐름:** `KpiTable`에서 `getSectionTableDisplayConfig(categoryId)`로 설정 조회 → `showQuarterlyBlock`/`showMonthlyBlock` 및 `filterAndOrderMetricRows(section.rows, visibleMetricsQuarterly/Monthly)`로 `quarterlyRows`/`monthlyRows` 계산 → `KpiTableSection`에 전달. Section은 `showQuarterlyBlock === false`이면 QUARTERLY 블록 전체 미렌더, `showMonthlyBlock === false`이면 MONTHLY 블록 전체 미렌더. 행이 0개인 블록도 미렌더.
+- **설정 예:** CM — 쿼터리 3행(`target`, `achievement`, `achievement_rate`), 먼슬리 6행 전체. FR — `showQuarterly: false`로 쿼터리 블록 없음, 먼슬리만. 그 외 섹션 — 설정 없음 → 기본값(블록·행 전체).
 
 ## 4. AI Implementation Guide (For vibe coding)
 
@@ -117,7 +165,7 @@
 
 | State / condition | Meaning (what the user sees) | Use this function / API | Where to implement |
 |-------------------|-----------------------------|--------------------------|--------------------|
-| `showQuarterlyProgress.has(categoryId)` | 해당 카테고리 섹션이 QUARTERLY 1행(ProgressBar) 뷰 | `onToggleQuarterlyProgress(categoryId)` | 토글: `useKpiTableCollapse.toggleQuarterlyProgress`. 1행 렌더: `KpiTableSection.tsx` "Quarterly row group: 1 row (progress view)" 블록. 6행 렌더: 동일 파일 `isQuarterlyProgressView ? ... : (section?.rows ?? []).map(...)`. |
+| `showQuarterlyProgress.has(categoryId)` | 해당 카테고리 섹션이 QUARTERLY 1행(ProgressBar) 뷰 | `onToggleQuarterlyProgress(categoryId)` | 토글: `useKpiTableCollapse.toggleQuarterlyProgress`. 1행 렌더: `KpiTableSection.tsx` "Quarterly row group: 1 row (progress view)" 블록. N행 렌더: 동일 파일 `quarterlyRows.map(...)` (행 목록은 displayConfig.visibleMetricsQuarterly로 필터·정렬된 것). |
 | `collapsedMonths.has(\`${categoryId}-monthly\`)` | 해당 카테고리의 MONTHLY 행이 접힌 상태(한 행 + ChevronRight) | `onToggleMonthSection(\`${categoryId}-monthly\`)` | 토글: `useKpiTableCollapse.toggleMonthSection`. 접힌 행 UI: `KpiTableSection.tsx` "Monthly collapsed state: show single row with chevron" 블록. |
 | `collapsedQuarterPeriods.has(quarterId)` | 해당 분기(q1/q2 등)의 월 컬럼이 숨겨지고 요약만 표시 | `onToggleQuarterPeriod(quarterId)` | 토글: `useKpiTableCollapse.toggleQuarterPeriod`. 헤더: `KpiTableHeader.tsx`에서 summary 컬럼 클릭 시 `onToggleQuarterPeriod(quarterId)` 호출. Section: `KpiTableSection.tsx`의 `columnGroups` 순회 시 `isColumnHidden = collapsedQuarterPeriods.has(group.quarterId)`로 셀 표시/숨김. |
 | `editContext !== null` | 편집 모달 오픈 | `handleEnterEditMode(ctx, initial)` / `exitEditMode()` | 진입: `KpiTableSection` 편집 가능 월 셀 **더블클릭** → `onEnterEditMode`. 퇴출: 취소/ESC/백드롭. 상태: `KpiTable.tsx`의 `editContext`, `editDraft`(초기), `editError`, `editPending`. 모달: `KpiUpsertModal.tsx`(로컬 draft, 자리 구분자 표시). |
@@ -142,6 +190,6 @@
 
 ## 5. Edge Cases & Error Handling
 
-- **Empty / invalid:** `sections`·`months`가 빈 배열이면 `KpiTable`은 빈 테이블을 렌더링. `calculateQuarterAggregates`는 Target/Achievement 행이 없으면 `null` 반환 → ProgressBar 대신 "—" 표시.
+- **Empty / invalid:** `sections`·`months`가 빈 배열이면 `KpiTable`은 빈 테이블을 렌더링. `calculateQuarterAggregates`는 `metric === "target"` / `"actual"` 행이 없으면 `null` 반환 → ProgressBar 대신 "—" 표시.
 - **Edit:** `region === "summary"`이면 편집 진입 불가. 저장 실패 시 `kpiUpsert`가 `{ ok: false, error }` 반환 → 모달 내 `editError` 표시, 모달은 열린 채 유지. 모달 닫기는 취소/ESC/백드롭(Dialog 기본 동작).
 - **Cleanup:** 테이블 언마운트 시 `useKpiTableCollapse` 상태는 React가 정리. 모달은 Dialog가 포커스·ESC를 처리.
